@@ -26,7 +26,7 @@ Updated after every prompt that produces a new decision.
 | **caveman** for token compression | ~75% token reduction on prompts and stored specs without losing semantic fidelity; applied automatically via Claude Code hooks | uncompressed prompts |
 | **Principal-level sub-agents** in `.claude/agents/` | Each agent runs in its own context window with role-specific tool restrictions; reviewer is read-only; prevents context pollution between tasks | monolithic single-agent sessions |
 | Agents: 🛠️ code-writer · 🧪 test-writer · 🔍 code-reviewer · ☁️ cloud-reviewer | Role separation: writers have Edit/Write tools, reviewers are read-only; emoji prefix identifies which agent is speaking | single general-purpose agent |
-| Review findings written to `REVIEW.md` (not just conversation) | Findings survive context resets; running log of Critical/Warning items until resolved by code-writer; no manual copy-paste needed | conversation-only output |
+| Review findings logged to `SPEC.md` §B BUGS via cavekit backprop | Findings survive context resets and link to invariants that prevent recurrence; SPEC.md is the single source of truth, no parallel file to drift | separate REVIEW.md, conversation-only output |
 | Reviewers end report with a ready-to-paste code-writer prompt | Full convenience without autonomy; human checkpoint preserved before any fix is applied | reviewers auto-spawning code-writer |
 | Python 3.12 | Latest stable, best type checking support, significant perf improvements over 3.11 | 3.11, 3.13 |
 | `src/museums/` package, src/ layout | Prevents importing local dir instead of installed package during tests; PyPA endorsed standard | flat layout |
@@ -86,7 +86,9 @@ Updated after every prompt that produces a new decision.
 
 | Decision | Why | Rejected |
 |----------|-----|---------|
-| Multi-stage Dockerfile (builder + python:3.12-slim, non-root uid 1000) | Keeps dev deps out of production image; non-root reduces attack surface | single-stage build |
+| Multi-stage Dockerfile (builder + python:3.12-alpine, non-root uid 1000) | Keeps dev deps out of production image; non-root reduces attack surface; Alpine ~50MB vs ~130MB slim | single-stage build, python:3.12-slim |
+| Alpine (`python:3.12-alpine`) for Docker + CI containers | Smallest attack surface; forces minimal deps; prod image matches CI container; consistent environment | python:3.12-slim (larger), ubuntu-latest CI container (mismatches prod) |
+| Poe the Poet for dev scripts | All scripts in pyproject.toml alongside deps and tool config; `uv run poe <task>` works inside uv venv; no separate file needed | Makefile (external file), hatch scripts (conflicts with uv venv management) |
 | Two Compose services: `api` (port 8000) + `jupyter` (port 8888) | Different restart policies and health-check paths; jupyter depends_on api healthy | single container |
 | Named volume `museums-data` shared between services | DB and model files persist across restarts; both services read the same data | bind mounts |
 
@@ -96,7 +98,8 @@ Updated after every prompt that produces a new decision.
 | Decision | Why | Rejected |
 |----------|-----|---------|
 | PR CI: lint + format (ruff) + unit tests + SAST + Docker build + Trivy + Bruno | Developer feedback loop; fast and cheap; no real Wikipedia calls | slower integration-only CI |
-| Nightly CI: full Wikipedia ingest + Locust stress test + pip-audit + Trivy on fresh images | Catches external changes (new CVE, Wikipedia table change) that don't trigger on commits | on-demand only |
+| Nightly CI: full Wikipedia ingest + pip-audit + Trivy on fresh images | Catches external changes (new CVE, Wikipedia table change) that don't trigger on commits | on-demand only |
+| Locust stress tests run nightly, gated on p95 + p99 + error-rate thresholds | Catches latency regressions external to PR-time CI; threshold breach fails the nightly job and pages oncall | bundled into nightly without explicit gating, manual perf testing |
 | Stress test thresholds: p95 + p99 latency + error rate | p95 = widespread degradation; p99 = tail latency spikes; both needed | p50 only |
 
 
@@ -105,6 +108,7 @@ Updated after every prompt that produces a new decision.
 | Decision | Why | Rejected |
 |----------|-----|---------|
 | CD: push to `staging` branch auto-deploys to staging env; merge to `main` requires manual GitHub Environment approval for prod | Dedicated staging branch gives a persistent UAT surface; approval gate prevents accidental prod deploys | auto-deploy to prod, staging served off main |
+| `release.yml` workflow separate from `pr.yml` | PR CI validates; release CI publishes — single responsibility; release only runs on `main` merge, not every PR | combining release step into pr.yml |
 | Three environments: preview / staging / prod (no separate UAT) | Staging serves UAT; separate UAT would double RDS costs for identical infrastructure | four-environment model |
 | Preview deploys: ECS Fargate task with public IP, no ALB | ALBs are expensive (~$0.008/hr/LCU) for a temporary per-PR env | ALB per PR |
 
