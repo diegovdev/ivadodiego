@@ -7,7 +7,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - Python 3.12; `src/museums/` layout; `uv` deps + lock
 - libs locked: httpx, pydantic, FastAPI, Uvicorn, SQLAlchemy 2.0, scikit-learn, joblib, pandas
 - data sources: Wikipedia MediaWiki REST API + `pandas.read_html()` for museums; Wikidata SPARQL for city populations
-- DB: SQLite (MVP) → PostgreSQL (prod) via single `DATABASE_URL` switch; production RDS tier sizing per T-INFRA
+- DB: SQLite (MVP) → PostgreSQL (prod) via single `DATABASE_URL` switch; production RDS tier sizing per §T `infra` stage (T18)
 - ML: sklearn `LinearRegression`, deterministic, persisted via `joblib`
 - ⊥ `print()` in library code — `logging` only
 - type hints ! everywhere
@@ -39,6 +39,9 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - file: `.pre-commit-config.yaml` — commitizen + ruff hooks
 - file: `.github/workflows/pr.yml` — preflight + ruff + pytest + SAST + Docker build + Trivy + Bruno
 - file: `pyproject.toml` `[tool.semantic_release]` — versioning config
+- file: `infra/` — Pulumi Python IaC project root
+- file: `infra/environments/{preview,staging,prod}.yaml` — Pulumi stack configs
+- file: `.github/workflows/nightly.yml` — nightly CI (live ingest, Locust, pip-audit, Trivy fresh)
 
 ## §V INVARIANTS
 - V1: ∀ museum row → `name`, `city`, `country`, `visitors_annual` ≥ 0 present & non-null
@@ -70,25 +73,42 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V27: ∀ PR pipeline ! preflight job <30s before heavy stages
 - V28: PR CI ! run ruff + pytest + SAST + Docker build + Trivy + Bruno
 - V29: Bruno collection ! in opencollection YAML format
+- V30: Pulumi stack configs ! at `infra/environments/{env}.yaml` (specified via `--config-file`)
+- V31: production tasks ! span ≥3 AZs with ≥2 instances
+- V32: RDS staging auto-shutdown ! 8pm–7am UTC; ⊥ shutdown prod
+- V33: Secrets Manager rotation cadence = 7 days; ⊥ password in env var or CW logs
+- V34: CD to prod ! requires GitHub Environment manual approval
+- V35: nightly CI ! enforce p95 + p99 + error-rate thresholds; threshold breach fails job
+- V36: branches ! match pattern `main` | `staging` | `feature/*` | `hotfix/*`; ⊥ other prefixes
 
 ## §T TASKS
-| id | status | task | cites |
-|---|---|---|---|
-| T1 | . | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 |
-| T2 | . | Bootstrap: `pyproject.toml` (uv, deps, dev-group), `src/museums/__init__.py`, module stubs (`scraper.py`, `enricher.py`, `db.py`, `regression.py`, `api.py`, `cli.py`), `tests/conftest.py`, `notebooks/`, `models/`, ruff config, logging config | C |
-| T3 | . | Docker: multi-stage `Dockerfile` (builder + `python:3.12-slim`, uid 1000), `docker-compose.yml` (`api`:8000 + `jupyter`:8888, vol `museums-data`, healthcheck, depends_on) | V13,V14,V21,V23,I.compose |
-| T4 | . | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api |
-| T5 | . | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api |
-| T6 | . | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno) | V24,V27,V28 |
-| T7 | . | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16 |
-| T8 | . | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.cli |
-| T9 | . | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 |
-| T10 | . | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 |
-| T11 | . | API impl: wire skeleton routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api |
-| T12 | . | CLI `src/museums/cli.py`: `museums ingest`, `museums train` subcommands wiring T8+T9→T7 and T10 | V16,I.cli |
-| T13 | . | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook |
-| T14 | . | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 |
-| T-INFRA | . | SCOPE MARKER — items below live in DECISIONS.md OUTER LOOP, ⊥ implement under this SPEC.md, separate infra spec required:<br>• Pulumi Python IaC<br>• `infra/environments/{env}.yaml` stack configs<br>• ECS Fargate (preview = task w/ public IP, no ALB; staging + prod behind ALB)<br>• HA: 3 AZs, ≥2 prod tasks (one AZ failure tolerated, no 3× task cost)<br>• RDS tier per env (preview SQLite / staging PostgreSQL t3.micro / prod PostgreSQL t3.small multi-AZ)<br>• RDS staging auto-shutdown (EventBridge + Lambda, 8pm–7am UTC, ~46% cost saving)<br>• Secrets Manager password rotation<br>• CloudWatch alarms (5xx, p99, ECS under-capacity, RDS CPU)<br>• staging-branch CD + GitHub Environment approval for prod<br>• nightly CI (live ingest, Locust, pip-audit, Trivy fresh-image)<br>• stress thresholds (p95, p99, error rate)<br>• Git flow `main`/`staging`/`feature/*`/`hotfix/*` | - |
+| id | status | stage | task | cites | issue | branch |
+|---|---|---|---|---|---|---|
+| T1 | . | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | - | - |
+| T2 | . | scaffold | Bootstrap: `pyproject.toml` (uv, deps, dev-group), `src/museums/__init__.py`, module stubs (`scraper.py`, `enricher.py`, `db.py`, `regression.py`, `api.py`, `cli.py`), `tests/conftest.py`, `notebooks/`, `models/`, ruff config, logging config | C | - | - |
+| T3 | . | scaffold | Docker: multi-stage `Dockerfile` (builder + `python:3.12-slim`, uid 1000), `docker-compose.yml` (`api`:8000 + `jupyter`:8888, vol `museums-data`, healthcheck, depends_on) | V13,V14,V21,V23,I.compose | - | - |
+| T4 | . | scaffold | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api | - | - |
+| T5 | . | scaffold | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api | - | - |
+| T6 | . | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno) | V24,V27,V28 | - | - |
+| T7 | . | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16 | - | - |
+| T8 | . | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.cli | - | - |
+| T9 | . | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | - | - |
+| T10 | . | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | - | - |
+| T11 | . | feature | API impl: wire skeleton routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | - | - |
+| T12 | . | feature | CLI `src/museums/cli.py`: `museums ingest`, `museums train` subcommands wiring T8+T9→T7 and T10 | V16,I.cli | - | - |
+| T13 | . | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | - | - |
+| T14 | . | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
+| T15 | . | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |
+| T16 | . | infra | Stack configs `infra/environments/{preview,staging,prod}.yaml` (use `--config-file` flag) | T15,V30 | - | - |
+| T17 | . | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
+| T18 | . | infra | RDS provisioning per env (SQLite preview / Postgres t3.micro staging / Postgres t3.small multi-AZ prod) | T16 | - | - |
+| T19 | . | infra | RDS Secrets Manager `manage_master_user_password` rotation; injected via ECS `secrets` field | T18,V33 | - | - |
+| T20 | . | infra | RDS staging auto-shutdown via EventBridge + Lambda, 8pm–7am UTC | T18,V32 | - | - |
+| T21 | . | infra | CloudWatch alarms: 5xx rate, p99 latency, ECS under-capacity, RDS CPU | T17,T18 | - | - |
+| T22 | . | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
+| T23 | . | delivery | CD workflow: `staging` auto-deploys staging; `main` merge requires GitHub Environment manual approval | T17,V34 | - | - |
+| T24 | . | quality | Nightly CI: live Wikipedia ingest + pip-audit + Trivy fresh-image scan | T6 | - | - |
+| T25 | . | quality | Locust stress thresholds enforced nightly: p95 + p99 + error rate | T24,V35 | - | - |
 
 ## §B BUGS
 | id | date | cause | fix |
