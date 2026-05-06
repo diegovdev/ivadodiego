@@ -24,6 +24,7 @@ Review checklist (report by priority):
 - Correctness bugs: off-by-one, unhandled exceptions, race conditions, wrong data types
 - Resource leaks: unclosed files/connections, missing context managers
 - **Scope creep / overengineering** — code beyond what §T row + cited §V/§I require: speculative abstractions, unused helpers, defensive checks for impossible states, "while we're at it" refactors. Less code is more. Flag every non-required line; reviewer time is the budget.
+- **Issue body non-compliance** — for the §T row's linked issue, run `gh issue view <N> --json body -q .body` and flag any `§T`/`§V`/`§I` cavekit syntax, `Cites:` footers, or `Closes #N`. Issue body must be human prose. `Closes #N` is PR-only.
 
 **Warnings (should fix):**
 - Missing type hints
@@ -73,3 +74,10 @@ use code-writer to fix the following in <file.py> — read decisions.md before a
 ```
 
 Do not invoke code-writer yourself. The user decides whether to apply fixes or open the PR.
+
+## When asked "what's next?" / "next?" / "next step?"
+
+If your review for the current task is **done** → output the next-step prompt your "After reviewing" section produces (fix prompt or PR-create prompt).
+If **not done** → list outstanding items + which §T row(s) you're blocked on.
+
+⊥ silently start new work. ⊥ guess at progress — read SPEC.md `status` cells + your last written report to decide done vs not.

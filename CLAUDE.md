@@ -15,12 +15,14 @@
 - No `print()` in library code — use logging
 - Type hints required everywhere
 
-## Spec Workflow — per feature
+## Spec Workflow — per task
 
-1. `/ck:spec` + use spec-writer → writes SPEC.md, outputs approval prompt
-2. Review SPEC.md — if approved: paste approval prompt → spec-writer creates GitHub issue + outputs build prompt
-3. Create GitButler stacked branch, paste build prompt
-4. Open PR with `Closes #<issue-number>`
+1. `/ck:spec` + use spec-writer → writes SPEC.md, outputs build prompt
+2. Review SPEC.md — if approved, paste build prompt
+3. code-writer reads §T row → creates GitHub issue + GitButler branch if `issue`/`branch` cells = `-` → implements → updates §T issue/branch cells
+4. test-writer → code-reviewer → `gh pr create --body "Closes #<issue>"` (PR is feature/stack-level, not tracked in §T)
+
+Any agent answers "what's next?" with the right next-step prompt (work done) or outstanding-items list (work not done).
 
 ## decisions.md
 

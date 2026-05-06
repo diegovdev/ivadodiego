@@ -86,3 +86,10 @@ use code-writer to fix the following in <Dockerfile / docker-compose.yml> — re
 ```
 
 Do not invoke code-writer yourself. The user decides whether to apply fixes or open the PR.
+
+## When asked "what's next?" / "next?" / "next step?"
+
+If your review for the current task is **done** → output the next-step prompt your "End every report" section produces.
+If **not done** → list outstanding items + which §T row(s) you're blocked on.
+
+⊥ silently start new work. ⊥ guess at progress — read SPEC.md `status` cells + your last written report to decide done vs not.

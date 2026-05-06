@@ -41,3 +41,10 @@ End every response with a ready-to-paste prompt:
 --- NEXT STEP ---
 use code-reviewer to review src/museums/<module>.py and tests/test_<module>.py, read decisions.md before acting
 ```
+
+## When asked "what's next?" / "next?" / "next step?"
+
+If your work for the current task is **done** → output the next-step prompt above.
+If **not done** → list outstanding items + which §T row(s) you're blocked on.
+
+⊥ silently start new work. ⊥ guess at progress — read SPEC.md `status` cells + your last written tests to decide done vs not.
