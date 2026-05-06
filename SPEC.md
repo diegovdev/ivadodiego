@@ -84,7 +84,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
 |---|---|---|---|---|---|---|
-| T1 | . | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | - | - |
+| T1 | x | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | #1 | feature/commit-hygiene-config-1 |
 | T2 | . | scaffold | Bootstrap: `pyproject.toml` (uv, deps, dev-group), `src/museums/__init__.py`, module stubs (`scraper.py`, `enricher.py`, `db.py`, `regression.py`, `api.py`, `cli.py`), `tests/conftest.py`, `notebooks/`, `models/`, ruff config, logging config | C | - | - |
 | T3 | . | scaffold | Docker: multi-stage `Dockerfile` (builder + `python:3.12-slim`, uid 1000), `docker-compose.yml` (`api`:8000 + `jupyter`:8888, vol `museums-data`, healthcheck, depends_on) | V13,V14,V21,V23,I.compose | - | - |
 | T4 | . | scaffold | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api | - | - |
