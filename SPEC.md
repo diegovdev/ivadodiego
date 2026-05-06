@@ -13,7 +13,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - type hints ! everywhere
 - structured data = Pydantic (API surface, validated) | `dataclasses` (internal value objects)
 - tests = pytest; ∀ HTTP & DB mocked in unit (pytest-httpx, in-memory SQLite); real Wikipedia response stored as fixture
-- Docker = multi-stage, base `python:3.12-slim`, non-root uid 1000
+- Docker = multi-stage, base `python:3.12-alpine`, non-root uid 1000
 - Compose = 2 services (`api`:8000, `jupyter`:8888), named volume `museums-data`, jupyter `depends_on` api healthy
 - conventional commits enforced via `commitizen` + `pre-commit` hook; ruff lint+format
 - versioning via `python-semantic-release` (auto bump, CHANGELOG, git tag, GitHub Release)
@@ -21,13 +21,13 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - commits ! via GitButler — direct `git commit` blocked by hook
 
 ## §I INTERFACES
-- cli: `museums ingest` → fetch + persist museums & city populations into DB; idempotent
-- cli: `museums train` → fit regression on DB rows, write `models/regression.pkl`, log R²
 - api: `GET /health` → 200 `{status:"ok"}`
 - api: `GET /museums` → 200 `[Museum]` (Pydantic)
 - api: `GET /museums/{id}` → 200 `Museum` | 404
 - api: `GET /cities` → 200 `[City]`
 - api: `POST /predict` body `{population:int≥0}` → 200 `{predicted_visitors:int≥0}` | 400 if model absent
+- api: `POST /ingest` → 202 `{status:"accepted"}`, triggers museum+city fetch+persist
+- api: `POST /train` → 202 `{status:"accepted"}`, triggers regression fit+persist
 - api: `GET /docs` → OpenAPI UI (FastAPI default)
 - file: `models/regression.pkl` — joblib-serialized fitted `LinearRegression`
 - file: SQLite DB on named vol `museums-data` (path = `${DATABASE_URL}`)
@@ -80,22 +80,24 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V34: CD to prod ! requires GitHub Environment manual approval
 - V35: nightly CI ! enforce p95 + p99 + error-rate thresholds; threshold breach fails job
 - V36: branches ! match pattern `main` | `staging` | `feature/*` | `hotfix/*`; ⊥ other prefixes
+- V37: Docker base image = `python:3.12-alpine`; CI jobs run inside `python:3.12-alpine` container
+- V38: release workflow ! use `GITHUB_TOKEN` only — ⊥ hardcoded PAT; ⊥ push to `main` without version bump commit
 
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
 |---|---|---|---|---|---|---|
 | T1 | x | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | #1 | feature/commit-hygiene-config-1 |
-| T2 | . | scaffold | Bootstrap: `pyproject.toml` (uv, deps, dev-group), `src/museums/__init__.py`, module stubs (`scraper.py`, `enricher.py`, `db.py`, `regression.py`, `api.py`, `cli.py`), `tests/conftest.py`, `notebooks/`, `models/`, ruff config, logging config | C | - | - |
-| T3 | . | scaffold | Docker: multi-stage `Dockerfile` (builder + `python:3.12-slim`, uid 1000), `docker-compose.yml` (`api`:8000 + `jupyter`:8888, vol `museums-data`, healthcheck, depends_on) | V13,V14,V21,V23,I.compose | - | - |
+| T2 | x | scaffold | Bootstrap: `pyproject.toml` (uv, deps, dev-group), `src/museums/__init__.py`, module stubs (`scraper.py`, `enricher.py`, `db.py`, `regression.py`, `api.py`), `tests/conftest.py`, `notebooks/`, `models/`, ruff+ANN config, logging config | C | - | - |
+| T3 | . | scaffold | Docker: multi-stage `Dockerfile` (builder + `python:3.12-alpine`, uid 1000, apk build deps for compiled packages), `docker-compose.yml` (`api`:8000 + `jupyter`:8888, vol `museums-data`, healthcheck, depends_on) | V13,V14,V21,V23,V37,I.compose | - | - |
 | T4 | . | scaffold | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api | - | - |
 | T5 | . | scaffold | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api | - | - |
-| T6 | . | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno) | V24,V27,V28 | - | - |
+| T6 | . | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno); jobs run in `python:3.12-alpine` container | V24,V27,V28,V37 | - | - |
 | T7 | . | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16 | - | - |
-| T8 | . | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.cli | - | - |
+| T8 | . | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.api | - | - |
 | T9 | . | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | - | - |
 | T10 | . | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | - | - |
-| T11 | . | feature | API impl: wire skeleton routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | - | - |
-| T12 | . | feature | CLI `src/museums/cli.py`: `museums ingest`, `museums train` subcommands wiring T8+T9→T7 and T10 | V16,I.cli | - | - |
+| T11 | . | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | - | - |
+| T12 | . | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | - | - |
 | T13 | . | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | - | - |
 | T14 | . | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
 | T15 | . | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |
@@ -107,6 +109,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 | T21 | . | infra | CloudWatch alarms: 5xx rate, p99 latency, ECS under-capacity, RDS CPU | T17,T18 | - | - |
 | T22 | . | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
 | T23 | . | delivery | CD workflow: `staging` auto-deploys staging; `main` merge requires GitHub Environment manual approval | T17,V34 | - | - |
+| T26 | . | delivery | `.github/workflows/release.yml` — triggers on push to `main`; Alpine container; full history checkout; `semantic-release version` (bumps pyproject.toml + tag) + `semantic-release publish` (GitHub Release + CHANGELOG); uses `GITHUB_TOKEN` | V25,V37,V38,T6 | - | - |
 | T24 | . | quality | Nightly CI: live Wikipedia ingest + pip-audit + Trivy fresh-image scan | T6 | - | - |
 | T25 | . | quality | Locust stress thresholds enforced nightly: p95 + p99 + error rate | T24,V35 | - | - |
 
