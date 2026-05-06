@@ -593,6 +593,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-httpx" },
     { name = "python-semantic-release" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 
@@ -618,6 +619,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-httpx" },
     { name = "python-semantic-release" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 

@@ -28,6 +28,7 @@ dev = [
     "anyio[trio]",
     "httpx",
     "poethepoet",
+    "pyyaml",
 ]
 
 [tool.hatch.build.targets.wheel]
