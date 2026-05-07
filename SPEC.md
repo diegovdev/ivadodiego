@@ -86,6 +86,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V40: ∀ third-party GitHub Action ! pinned to SHA or explicit version tag (⊥ `@master`, `@main`)
 - V41: GitHub issue bodies = human prose; ⊥ § notation (V/T/B refs in body)
 - V42: pre-commit hook tool versions ! match dev-group versions (single source of truth)
+- V43: ∀ HTTP polling/healthcheck inside Alpine container ! use `python -c "urllib.request.urlopen(...)"` (⊥ `wget`, ⊥ `curl` — both implicit base-image deps); applies to Dockerfile, Compose, CI scripts
 
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
@@ -133,3 +134,4 @@ Status: `.` open, `~` wip, `x` fixed.
 | B9 | x | 2026-05-06 | T1 | low | `[tool.semantic_release]` v7 schema; PSR unpinned can pull v8 | unpinned PSR + v7 schema | pinned `python-semantic-release>=7,<8` in dev-group |
 | B10 | x | 2026-05-06 | T3 | low | `uv sync` may install editable; runtime venv → `/build/src` | no `--no-editable` in builder | added `--no-editable` to Dockerfile `uv sync --no-dev` |
 | B11 | x | 2026-05-06 | T3 | low | healthcheck `wget -qO-` relies on busybox wget in Alpine | implicit base-image dep | switch to `python -c "urllib.request.urlopen(...)"` |
+| B12 | . | 2026-05-06 | T6 | low | `pr.yml:113` api-test step polls `/health` via `wget` in Alpine container — same busybox anti-pattern as B11 | B11 fix scoped to Compose only; CI script missed | replace with `until python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" 2>/dev/null; do sleep 1; done`; +V43 |
