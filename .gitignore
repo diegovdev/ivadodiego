@@ -219,6 +219,7 @@ __marimo__/
 
 # Claude Code — local machine overrides only
 .claude/settings.local.json
+.claude/agents/
 
 # cavemem — local memory store + per-dev settings
 .cavemem/
