@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from museums.db import (
+    Base,
     CityRow,
     MuseumRow,
     get_engine,
@@ -19,6 +20,7 @@ _URL = "sqlite:///:memory:"
 @pytest.fixture()
 def session() -> Generator[Session, None, None]:
     engine = get_engine(_URL)
+    Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     s = factory()
     try:

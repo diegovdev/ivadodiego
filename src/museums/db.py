@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import CheckConstraint, String, UniqueConstraint, create_engine, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -44,14 +45,14 @@ class CityRow(Base):
 
 
 def get_engine(database_url: str) -> Engine:
-    engine = create_engine(database_url)
-    Base.metadata.create_all(engine)
-    return engine
+    return create_engine(database_url)
 
 
 def init_db(database_url: str) -> None:
     global _session_factory
-    _session_factory = sessionmaker(get_engine(database_url), expire_on_commit=False)
+    engine = get_engine(database_url)
+    Base.metadata.create_all(engine)
+    _session_factory = sessionmaker(engine, expire_on_commit=False)
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -74,28 +75,36 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def upsert_museum(
     session: Session, name: str, city: str, country: str, visitors_annual: int
 ) -> MuseumRow:
-    row = session.execute(
+    stmt = (
+        sqlite_insert(MuseumRow)
+        .values(name=name, city=city, country=country, visitors_annual=visitors_annual)
+        .on_conflict_do_update(
+            index_elements=["name", "city", "country"],
+            set_={"visitors_annual": visitors_annual},
+        )
+    )
+    session.execute(stmt)
+    return session.scalars(
         select(MuseumRow).where(
             MuseumRow.name == name,
             MuseumRow.city == city,
             MuseumRow.country == country,
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        row = MuseumRow(name=name, city=city, country=country, visitors_annual=visitors_annual)
-        session.add(row)
-    else:
-        row.visitors_annual = visitors_annual
-    return row
+        ),
+        execution_options={"populate_existing": True},
+    ).one()
 
 
 def upsert_city(session: Session, name: str, country: str, population: int) -> CityRow:
-    row = session.execute(
-        select(CityRow).where(CityRow.name == name, CityRow.country == country)
-    ).scalar_one_or_none()
-    if row is None:
-        row = CityRow(name=name, country=country, population=population)
-        session.add(row)
-    else:
-        row.population = population
-    return row
+    stmt = (
+        sqlite_insert(CityRow)
+        .values(name=name, country=country, population=population)
+        .on_conflict_do_update(
+            index_elements=["name", "country"],
+            set_={"population": population},
+        )
+    )
+    session.execute(stmt)
+    return session.scalars(
+        select(CityRow).where(CityRow.name == name, CityRow.country == country),
+        execution_options={"populate_existing": True},
+    ).one()

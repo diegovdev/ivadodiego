@@ -87,6 +87,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V41: GitHub issue bodies = human prose; ⊥ § notation (V/T/B refs in body)
 - V42: pre-commit hook tool versions ! match dev-group versions (single source of truth)
 - V43: ∀ HTTP polling/healthcheck inside Alpine container ! use `python -c "urllib.request.urlopen(...)"` (⊥ `wget`, ⊥ `curl` — both implicit base-image deps); applies to Dockerfile, Compose, CI scripts
+- V44: upsert helpers ! use dialect-level `INSERT … ON CONFLICT DO UPDATE` (⊥ SELECT-then-INSERT TOCTOU); applies to all `upsert_*` functions in `db.py`
 
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
@@ -97,7 +98,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 | T4 | x | scaffold | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api | [#4](https://github.com/diegovdev/ivadodiego/issues/4) | feature/scaffold |
 | T5 | x | scaffold | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api | [#5](https://github.com/diegovdev/ivadodiego/issues/5) | feature/scaffold |
 | T6 | x | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno); jobs run in `python:3.12-alpine` container | V24,V27,V28,V37 | [#6](https://github.com/diegovdev/ivadodiego/issues/6) | feature/scaffold |
-| T7 | x | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16 | [#8](https://github.com/diegovdev/ivadodiego/issues/8) | feature/db-7 |
+| T7 | x | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16,V44 | [#8](https://github.com/diegovdev/ivadodiego/issues/8) | feature/db-7 |
 | T8 | . | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.api | - | - |
 | T9 | . | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | - | - |
 | T10 | . | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | - | - |
@@ -135,3 +136,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | B10 | x | 2026-05-06 | T3 | low | `uv sync` may install editable; runtime venv → `/build/src` | no `--no-editable` in builder | added `--no-editable` to Dockerfile `uv sync --no-dev` |
 | B11 | x | 2026-05-06 | T3 | low | healthcheck `wget -qO-` relies on busybox wget in Alpine | implicit base-image dep | switch to `python -c "urllib.request.urlopen(...)"` |
 | B12 | x | 2026-05-06 | T6 | low | `pr.yml:113` api-test step polls `/health` via `wget` in Alpine container — same busybox anti-pattern as B11 | B11 fix scoped to Compose only; CI script missed | replaced with `until python -c "urllib.request.urlopen(...)"` poll; +V43 |
+| B13 | x | 2026-05-07 | T7 | low | `get_engine` calls `Base.metadata.create_all(engine)` — DDL side effect in factory function; not in T7 spec | scope creep: schema creation coupled to engine instantiation | move `create_all` to `init_db`; remove from `get_engine` |
+| B14 | x | 2026-05-07 | T7 | — | reviewer claimed `get_session` commits on HTTPException (V7 violation) | FALSE POSITIVE: FastAPI yield-dep injection throws exception into generator; `except Exception` catches HTTPException → rollback fires correctly | no fix needed; recorded for precedent |
+| B15 | x | 2026-05-07 | T7 | medium | `upsert_museum`/`upsert_city` use SELECT-then-INSERT — TOCTOU race under concurrent ingest | no dialect-level atomic upsert | replace with `sqlalchemy.dialects.sqlite.insert` + `on_conflict_do_update`; +V44 |
+| B16 | x | 2026-05-07 | T7 | — | reviewer flagged `SessionDep` unused in `api.py` endpoints | NOT A BUG: T4 created stubs; T11 wires SessionDep into routes | no fix needed; T11 scope |
