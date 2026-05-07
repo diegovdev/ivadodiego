@@ -130,6 +130,6 @@ Status: `.` open, `~` wip, `x` fixed.
 | B6 | x | 2026-05-06 | T6 | medium | build job `runs-on: ubuntu-latest`, not Alpine container | DinD requires host runner | amended V37: Docker-build job uses host runner; all other CI jobs use alpine container |
 | B7 | x | 2026-05-06 | T6 | medium | issue #6 body contains `Invariants: V24,V27,V28,V37` | § notation leaked into human prose | rewrote #6 body to human prose; +V41 |
 | B8 | x | 2026-05-06 | T1,T2 | low | ruff pinned in pre-commit, unpinned in dev-group → drift | no version-sync policy | `ruff==0.6.9` in dev-group + CI; matches pre-commit rev; +V42 |
-| B9 | . | 2026-05-06 | T1 | low | `[tool.semantic_release]` v7 schema; PSR unpinned can pull v8 | unpinned PSR + v7 schema | pin PSR `>=7,<8` or migrate config |
+| B9 | x | 2026-05-06 | T1 | low | `[tool.semantic_release]` v7 schema; PSR unpinned can pull v8 | unpinned PSR + v7 schema | pinned `python-semantic-release>=7,<8` in dev-group |
 | B10 | . | 2026-05-06 | T3 | low | `uv sync` may install editable; runtime venv → `/build/src` | no `--no-editable` in builder | add `--no-editable` to Dockerfile `uv sync` |
 | B11 | . | 2026-05-06 | T3 | low | healthcheck `wget -qO-` relies on busybox wget in Alpine | implicit base-image dep | switch to `python -c "urllib.request.urlopen(...)"` |
