@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install ruff
-        run: pip install ruff --quiet
+        run: pip install ruff==0.6.9 --quiet
       - name: Ruff check
         run: ruff check src/ tests/
       - name: Ruff format check
