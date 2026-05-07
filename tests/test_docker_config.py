@@ -3,8 +3,9 @@ from pathlib import Path
 
 import yaml
 
-DOCKERFILE = Path("Dockerfile").read_text()
-COMPOSE = yaml.safe_load(Path("docker-compose.yml").read_text())
+_REPO = Path(__file__).parent.parent
+DOCKERFILE = (_REPO / "Dockerfile").read_text()
+COMPOSE = yaml.safe_load((_REPO / "docker-compose.yml").read_text())
 
 
 def test_dockerfile_alpine_base() -> None:

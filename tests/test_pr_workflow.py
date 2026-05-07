@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-WF = Path(".github/workflows/pr.yml")
+WF = Path(__file__).parent.parent / ".github/workflows/pr.yml"
 
 
 def _jobs() -> dict:

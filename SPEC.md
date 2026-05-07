@@ -122,7 +122,7 @@ Status: `.` open, `~` wip, `x` fixed.
 
 | id | status | date | task | severity | description | cause | fix |
 |---|---|---|---|---|---|---|---|
-| B1 | . | 2026-05-06 | T3,T5,T6 | high | 3 test files use bare `Path("...")` → cwd-dependent FileNotFoundError | tests assume pytest cwd = repo root | `Path(__file__).parent...` repo-relative; +V39 |
+| B1 | x | 2026-05-06 | T3,T5,T6 | high | 3 test files use bare `Path("...")` → cwd-dependent FileNotFoundError | tests assume pytest cwd = repo root | `Path(__file__).parent...` repo-relative; +V39 |
 | B2 | . | 2026-05-06 | T3 | high | jupyter image `python-3.11`; §C requires 3.12 | wrong image tag in compose | bump to `python-3.12`; amend V37 |
 | B3 | . | 2026-05-06 | T6 | high | `trivy-action@master` floating ref (supply-chain) | third-party action unpinned | pin to version tag; +V40 |
 | B4 | . | 2026-05-06 | T2 | medium | `db.py:6` returns `object`; `regression.py:10` `session: object` | vacuous hints satisfy V11 letter, not spirit | use `Engine`/`Session`; amend V11 |

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-API_DIR = Path("tests/api")
+API_DIR = Path(__file__).parent / "api"
 
 REQUIRED_STEMS = {
     "01-get-health", "02-get-museums", "03-get-museum-by-id",
