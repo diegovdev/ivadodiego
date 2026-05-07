@@ -110,6 +110,6 @@ jobs:
       - name: Start API
         run: |
           uv run uvicorn museums.api:app --host 127.0.0.1 --port 8000 &
-          until wget -q -O - http://127.0.0.1:8000/health; do sleep 1; done
+          until python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" 2>/dev/null; do sleep 1; done
       - name: Run Bruno tests
         run: bru run tests/api/ --env Museums
