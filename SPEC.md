@@ -54,7 +54,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V8: `predict_visitors` output = `max(0, int(pred))` (⊥ negative)
 - V9: model persistence ! via `joblib` to `MODEL_PATH`
 - V10: ⊥ `print()` in `src/museums/`; `logging` only
-- V11: ∀ public function/method → type hints on params & return
+- V11: ∀ public function/method → type hints on params & return; hints ! specific (⊥ `object`/`Any` as public return unless documented)
 - V12: API responses ! Pydantic-validated models (no raw dicts)
 - V13: Docker image runs as uid 1000 non-root
 - V14: Compose `jupyter` ! start only after `api` healthcheck passes
@@ -80,8 +80,12 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V34: CD to prod ! requires GitHub Environment manual approval
 - V35: nightly CI ! enforce p95 + p99 + error-rate thresholds; threshold breach fails job
 - V36: branches ! match pattern `main` | `staging` | `feature/*` | `hotfix/*`; ⊥ other prefixes
-- V37: Docker base image = `python:3.12-alpine`; CI jobs run inside `python:3.12-alpine` container
+- V37: Docker base image = `python:3.12-alpine`; CI jobs run inside `python:3.12-alpine` container; jupyter image ! Python 3.12; exception: Docker-build CI job runs on host runner (DinD)
 - V38: release workflow ! use `GITHUB_TOKEN` only — ⊥ hardcoded PAT; ⊥ push to `main` without version bump commit
+- V39: ∀ test file ! reference repo paths via `Path(__file__).parent...` (⊥ cwd-dependent bare paths)
+- V40: ∀ third-party GitHub Action ! pinned to SHA or explicit version tag (⊥ `@master`, `@main`)
+- V41: GitHub issue bodies = human prose; ⊥ § notation (V/T/B refs in body)
+- V42: pre-commit hook tool versions ! match dev-group versions (single source of truth)
 
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
@@ -114,5 +118,18 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 | T25 | . | quality | Locust stress thresholds enforced nightly: p95 + p99 + error rate | T24,V35 | - | - |
 
 ## §B BUGS
-| id | date | cause | fix |
-|---|---|---|---|
+Status: `.` open, `~` wip, `x` fixed.
+
+| id | status | date | task | severity | description | cause | fix |
+|---|---|---|---|---|---|---|---|
+| B1 | . | 2026-05-06 | T3,T5,T6 | high | 3 test files use bare `Path("...")` → cwd-dependent FileNotFoundError | tests assume pytest cwd = repo root | `Path(__file__).parent...` repo-relative; +V39 |
+| B2 | . | 2026-05-06 | T3 | high | jupyter image `python-3.11`; §C requires 3.12 | wrong image tag in compose | bump to `python-3.12`; amend V37 |
+| B3 | . | 2026-05-06 | T6 | high | `trivy-action@master` floating ref (supply-chain) | third-party action unpinned | pin to version tag; +V40 |
+| B4 | . | 2026-05-06 | T2 | medium | `db.py:6` returns `object`; `regression.py:10` `session: object` | vacuous hints satisfy V11 letter, not spirit | use `Engine`/`Session`; amend V11 |
+| B5 | . | 2026-05-06 | T6 | medium | preflight `timeout-minutes: 5`; V27 says <30s | cold pip install ~60-90s dominates | cache wheels or pre-bake image; V27 stands |
+| B6 | . | 2026-05-06 | T6 | medium | build job `runs-on: ubuntu-latest`, not Alpine container | DinD requires host runner | amend V37 carve-out |
+| B7 | . | 2026-05-06 | T6 | medium | issue #6 body contains `Invariants: V24,V27,V28,V37` | § notation leaked into human prose | rewrite body; +V41 |
+| B8 | . | 2026-05-06 | T1,T2 | low | ruff pinned in pre-commit, unpinned in dev-group → drift | no version-sync policy | pin both to same version; +V42 |
+| B9 | . | 2026-05-06 | T1 | low | `[tool.semantic_release]` v7 schema; PSR unpinned can pull v8 | unpinned PSR + v7 schema | pin PSR `>=7,<8` or migrate config |
+| B10 | . | 2026-05-06 | T3 | low | `uv sync` may install editable; runtime venv → `/build/src` | no `--no-editable` in builder | add `--no-editable` to Dockerfile `uv sync` |
+| B11 | . | 2026-05-06 | T3 | low | healthcheck `wget -qO-` relies on busybox wget in Alpine | implicit base-image dep | switch to `python -c "urllib.request.urlopen(...)"` |
