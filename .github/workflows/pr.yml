@@ -12,6 +12,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: /root/.cache/pip
+          key: preflight-pip-${{ hashFiles('uv.lock') }}
       - name: Install uv + pyyaml
         run: pip install uv pyyaml --quiet
       - name: Check lockfile
