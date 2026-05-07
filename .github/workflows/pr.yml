@@ -80,7 +80,7 @@ jobs:
       - name: Build image
         run: docker build -t museums:ci .
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: museums:ci
           format: table

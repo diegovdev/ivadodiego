@@ -124,7 +124,7 @@ Status: `.` open, `~` wip, `x` fixed.
 |---|---|---|---|---|---|---|---|
 | B1 | x | 2026-05-06 | T3,T5,T6 | high | 3 test files use bare `Path("...")` → cwd-dependent FileNotFoundError | tests assume pytest cwd = repo root | `Path(__file__).parent...` repo-relative; +V39 |
 | B2 | x | 2026-05-06 | T3 | high | jupyter image `python-3.11`; §C requires 3.12 | wrong image tag in compose | bump to `python-3.12`; amend V37 |
-| B3 | . | 2026-05-06 | T6 | high | `trivy-action@master` floating ref (supply-chain) | third-party action unpinned | pin to version tag; +V40 |
+| B3 | x | 2026-05-06 | T6 | high | `trivy-action@master` floating ref (supply-chain) | third-party action unpinned | pin to `trivy-action@v0.36.0`; +V40 |
 | B4 | . | 2026-05-06 | T2 | medium | `db.py:6` returns `object`; `regression.py:10` `session: object` | vacuous hints satisfy V11 letter, not spirit | use `Engine`/`Session`; amend V11 |
 | B5 | . | 2026-05-06 | T6 | medium | preflight `timeout-minutes: 5`; V27 says <30s | cold pip install ~60-90s dominates | cache wheels or pre-bake image; V27 stands |
 | B6 | . | 2026-05-06 | T6 | medium | build job `runs-on: ubuntu-latest`, not Alpine container | DinD requires host runner | amend V37 carve-out |
