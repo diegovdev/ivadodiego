@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "museums"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx",
+    "pydantic>=2",
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2.0",
+    "scikit-learn",
+    "joblib",
+    "pandas",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-httpx",
+    "ruff==0.15.12",
+    "commitizen",
+    "python-semantic-release>=7,<8",
+    "pre-commit",
+    "anyio[trio]",
+    "httpx",
+    "poethepoet",
+    "pyyaml",
+    "bandit",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/museums"]
+
+[tool.poe.tasks]
+dev    = "uvicorn museums.api:app --reload --port 8000"
+test   = "pytest"
+lint   = "ruff check src/ tests/"
+fmt    = "ruff format src/ tests/"
+fix    = "ruff check --fix src/ tests/"
+bruno  = {shell = "cd tests/api && bru run --env Museums", help = "API tests — needs server running (uv run poe dev)"}
+ingest = "python -c \"import httpx; r=httpx.post('http://localhost:8000/ingest'); print(r.status_code, r.json())\""
+train  = "python -c \"import httpx; r=httpx.post('http://localhost:8000/train'); print(r.status_code, r.json())\""
+
+[tool.poe.tasks.check]
+sequence = ["lint", "test", "bruno"]
+
+[tool.poe.tasks.format]
+sequence = ["fix", "fmt"]
+
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+update_changelog_on_bump = true
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+branch = "main"
+build_command = "uv build"
+changelog_file = "CHANGELOG.md"
+upload_to_pypi = false
+upload_to_release = true
+major_on_zero = false
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "perf", "refactor", "style", "test", "chore", "docs", "ci", "build"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "ANN"]
+
+[tool.ruff.format]
+quote-style = "double"

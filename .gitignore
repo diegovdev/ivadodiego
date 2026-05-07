@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code — local machine overrides only
+.claude/settings.local.json
+.claude/agents/
+
+# cavemem — local memory store + per-dev settings
+.cavemem/
+
+# VSCode — personal appearance settings only
+.vscode/

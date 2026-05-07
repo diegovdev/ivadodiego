@@ -1,0 +1,28 @@
+info:
+  name: post ingest
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/ingest"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 60000
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("status is accepted", function() {
+          expect(res.body.status).to.equal("accepted");
+        });

@@ -1,0 +1,29 @@
+info:
+  name: post predict
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseUrl}}/predict"
+  auth: inherit
+  body:
+    type: json
+    data: '{"population": 1000000}'
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("model not available error", function() {
+          expect(res.body).to.have.property("detail");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0

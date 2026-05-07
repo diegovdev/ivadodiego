@@ -1,0 +1,28 @@
+info:
+  name: get museums
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/museums"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("response is an array", function() {
+          expect(res.body).to.be.an("array");
+        });
