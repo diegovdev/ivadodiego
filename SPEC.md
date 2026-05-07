@@ -127,7 +127,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | B3 | x | 2026-05-06 | T6 | high | `trivy-action@master` floating ref (supply-chain) | third-party action unpinned | pin to `trivy-action@v0.36.0`; +V40 |
 | B4 | x | 2026-05-06 | T2 | medium | `db.py:6` returns `object`; `regression.py:10` `session: object` | vacuous hints satisfy V11 letter, not spirit | use `Engine`/`Session`; amend V11 |
 | B5 | x | 2026-05-06 | T6 | medium | preflight `timeout-minutes: 5`; V27 says <30s | cold pip install ~60-90s dominates | `actions/cache@v4` on `/root/.cache/pip` keyed to `uv.lock` hash; V27 stands |
-| B6 | . | 2026-05-06 | T6 | medium | build job `runs-on: ubuntu-latest`, not Alpine container | DinD requires host runner | amend V37 carve-out |
+| B6 | x | 2026-05-06 | T6 | medium | build job `runs-on: ubuntu-latest`, not Alpine container | DinD requires host runner | amended V37: Docker-build job uses host runner; all other CI jobs use alpine container |
 | B7 | . | 2026-05-06 | T6 | medium | issue #6 body contains `Invariants: V24,V27,V28,V37` | § notation leaked into human prose | rewrite body; +V41 |
 | B8 | . | 2026-05-06 | T1,T2 | low | ruff pinned in pre-commit, unpinned in dev-group → drift | no version-sync policy | pin both to same version; +V42 |
 | B9 | . | 2026-05-06 | T1 | low | `[tool.semantic_release]` v7 schema; PSR unpinned can pull v8 | unpinned PSR + v7 schema | pin PSR `>=7,<8` or migrate config |
