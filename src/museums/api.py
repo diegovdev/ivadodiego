@@ -2,6 +2,7 @@ import logging
 from http import HTTPStatus
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,11 @@ class PredictResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     status: str
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -15,6 +15,9 @@ Updated after every prompt that produces a new decision.
 | **cavekit** (`/ck:spec /ck:build /ck:check`) for spec-driven development | Keeps SPEC.md as the single source of truth across context resets; backprop automatically updates the spec on failures | ad-hoc prompting |
 | **GitHub issue per feature** — spec content from SPEC.md becomes the issue description | Traceability: every feature has a tracked artifact before a line of code is written; issue links the spec to the PR and commit history | issues created retroactively |
 | **PR per feature auto-closes its issue** via `Closes #N` in PR description | Keeps the issue tracker clean automatically; no manual housekeeping | manually closing issues |
+| Issue body = human prose, no cavekit § syntax | Issue lives in GitHub UI for collaborators / reviewers; `§T`/`§V`/`§I` are SPEC.md addressing, opaque outside the repo | leaking spec notation into issue body |
+| `Closes #N` belongs in PR description only | Issue closes on PR merge; putting `Closes` in the issue itself or in commit messages is meaningless self-reference | `Closes` in issue body or commit message |
+| §T `issue` cell = markdown link `[#N](url)` | Cells become click-through in any markdown viewer; bare `#N` requires manual lookup | bare `#N` |
 
 
 ## Dev
@@ -58,6 +61,10 @@ Updated after every prompt that produces a new decision.
 | Record real Wikipedia response as fixture file for scraper tests | Replay-based tests are deterministic and document the real API shape | mocking from scratch |
 | Matrix builds: Python 3.12 + 3.13 | Catches compatibility regressions before upgrading | single version only |
 | Bruno API tests in opencollection YAML format | Diffs are readable in PR reviews; standard YAML tooling applies | .bru format |
+| Bruno collection manifest = `opencollection.yml` (not `bruno.json`) | `bruno.json` is the legacy `.bru` format manifest; opencollection format requires `opencollection.yml` with `opencollection: 1.0.0` header | `bruno.json` |
+| Bruno request files use `.yml` extension (not `.yaml`) | Bruno desktop only loads `.yml` files; `.yaml` silently ignored | `.yaml` extension |
+| Bruno request files numbered `NN-name.yml` (e.g. `01-get-health.yml`) | Explicit `seq:` field + numeric prefix both control run order; prefix makes ordering visible in directory listings | arbitrary names |
+| Bruno environments file format: `name:` + `variables: [{name, value}]` | opencollection env schema uses list-of-objects; flat `vars:` dict is wrong format and causes Bruno to ignore the file | `vars: {key: value}` dict |
 
 
 ## Commit
