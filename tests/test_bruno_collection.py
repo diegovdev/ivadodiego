@@ -1,4 +1,5 @@
 """Validate Bruno API collection structure — V29."""
+
 from pathlib import Path
 
 import yaml
@@ -6,8 +7,13 @@ import yaml
 API_DIR = Path(__file__).parent / "api"
 
 REQUIRED_STEMS = {
-    "01-get-health", "02-get-museums", "03-get-museum-by-id",
-    "04-get-cities", "05-post-predict", "06-post-ingest", "07-post-train",
+    "01-get-health",
+    "02-get-museums",
+    "03-get-museum-by-id",
+    "04-get-cities",
+    "05-post-predict",
+    "06-post-ingest",
+    "07-post-train",
 }
 
 
@@ -26,7 +32,8 @@ def test_environment_file_exists() -> None:
 
 def _request_files() -> list[Path]:
     return sorted(
-        f for f in API_DIR.iterdir()
+        f
+        for f in API_DIR.iterdir()
         if f.suffix == ".yml" and f.parent == API_DIR and f.name != "opencollection.yml"
     )
 

@@ -21,7 +21,7 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-httpx",
-    "ruff==0.6.9",
+    "ruff==0.15.12",
     "commitizen",
     "python-semantic-release>=7,<8",
     "pre-commit",
@@ -40,11 +40,15 @@ dev    = "uvicorn museums.api:app --reload --port 8000"
 test   = "pytest"
 lint   = "ruff check src/ tests/"
 fmt    = "ruff format src/ tests/"
+fix    = "ruff check --fix src/ tests/"
 ingest = "python -c \"import httpx; r=httpx.post('http://localhost:8000/ingest'); print(r.status_code, r.json())\""
 train  = "python -c \"import httpx; r=httpx.post('http://localhost:8000/train'); print(r.status_code, r.json())\""
 
 [tool.poe.tasks.check]
 sequence = ["lint", "test"]
+
+[tool.poe.tasks.format]
+sequence = ["fix", "fmt"]
 
 
 [tool.commitizen]

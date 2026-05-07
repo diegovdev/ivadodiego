@@ -1,4 +1,5 @@
 """API skeleton route shape tests — no DB, no ML required."""
+
 from fastapi.testclient import TestClient
 
 from museums.api import app

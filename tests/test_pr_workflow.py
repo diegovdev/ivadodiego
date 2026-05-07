@@ -1,4 +1,5 @@
 """Validate PR workflow structure — V24, V27, V28."""
+
 from pathlib import Path
 
 import yaml

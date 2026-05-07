@@ -1,4 +1,5 @@
 """Verify Dockerfile and docker-compose.yml satisfy structural invariants."""
+
 from pathlib import Path
 
 import yaml

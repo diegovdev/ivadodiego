@@ -60,6 +60,7 @@ Updated after every prompt that produces a new decision.
 | Mock all HTTP + DB in unit tests (pytest-httpx, in-memory SQLite) | Tests must be fast and deterministic; no live Wikipedia/Wikidata calls in CI | integration-first testing |
 | Record real Wikipedia response as fixture file for scraper tests | Replay-based tests are deterministic and document the real API shape | mocking from scratch |
 | Matrix builds: Python 3.12 + 3.13 | Catches compatibility regressions before upgrading | single version only |
+| ruff pinned to `==0.15.12` in dev-group, pre-commit rev, and CI install; same version in all three (V42) | Different versions produce different formatting output — CI `ruff format --check` fails if local ruff version differs; 0.15.12 is the project baseline | mixing versions, unpinned |
 | Bruno API tests in opencollection YAML format | Diffs are readable in PR reviews; standard YAML tooling applies | .bru format |
 | Bruno collection manifest = `opencollection.yml` (not `bruno.json`) | `bruno.json` is the legacy `.bru` format manifest; opencollection format requires `opencollection.yml` with `opencollection: 1.0.0` header | `bruno.json` |
 | Bruno request files use `.yml` extension (not `.yaml`) | Bruno desktop only loads `.yml` files; `.yaml` silently ignored | `.yaml` extension |
