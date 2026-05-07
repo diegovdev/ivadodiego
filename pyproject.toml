@@ -41,11 +41,12 @@ test   = "pytest"
 lint   = "ruff check src/ tests/"
 fmt    = "ruff format src/ tests/"
 fix    = "ruff check --fix src/ tests/"
+bruno  = {shell = "cd tests/api && bru run --env Museums", help = "API tests — needs server running (uv run poe dev)"}
 ingest = "python -c \"import httpx; r=httpx.post('http://localhost:8000/ingest'); print(r.status_code, r.json())\""
 train  = "python -c \"import httpx; r=httpx.post('http://localhost:8000/train'); print(r.status_code, r.json())\""
 
 [tool.poe.tasks.check]
-sequence = ["lint", "test"]
+sequence = ["lint", "test", "bruno"]
 
 [tool.poe.tasks.format]
 sequence = ["fix", "fmt"]

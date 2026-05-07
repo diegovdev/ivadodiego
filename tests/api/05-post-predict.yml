@@ -8,15 +8,8 @@ http:
   url: "{{baseUrl}}/predict"
   auth: inherit
   body:
-    mode: json
-    json: |-
-      {"population": 1000000}
-
-settings:
-  encodeUrl: true
-  timeout: 0
-  followRedirects: true
-  maxRedirects: 5
+    type: json
+    data: '{"population": 1000000}'
 
 runtime:
   assertions:
@@ -30,3 +23,7 @@ runtime:
         test("model not available error", function() {
           expect(res.body).to.have.property("detail");
         });
+
+settings:
+  encodeUrl: true
+  timeout: 0
