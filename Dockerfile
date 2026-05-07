@@ -12,7 +12,7 @@ COPY pyproject.toml uv.lock ./
 COPY src/ ./src/
 
 # Install production deps only (no dev group)
-RUN uv sync --no-dev
+RUN uv sync --no-dev --no-editable
 
 # Stage 2: runtime
 FROM python:3.12-alpine AS runtime
