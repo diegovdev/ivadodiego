@@ -29,6 +29,7 @@ dev = [
     "httpx",
     "poethepoet",
     "pyyaml",
+    "bandit",
 ]
 
 [tool.hatch.build.targets.wheel]

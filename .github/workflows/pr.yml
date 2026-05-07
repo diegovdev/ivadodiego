@@ -1,0 +1,111 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + pyyaml
+        run: pip install uv pyyaml --quiet
+      - name: Check lockfile
+        run: uv lock --check
+      - name: Validate YAML configs
+        run: |
+          python -c "
+          import yaml, pathlib
+          targets = list(pathlib.Path('.github/workflows').glob('*.yml')) + [pathlib.Path('docker-compose.yml')]
+          for f in targets:
+              yaml.safe_load(f.read_text())
+          print(f'Validated {len(targets)} files')
+          "
+
+  lint:
+    name: Lint
+    needs: preflight
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ruff
+        run: pip install ruff --quiet
+      - name: Ruff check
+        run: ruff check src/ tests/
+      - name: Ruff format check
+        run: ruff format --check src/ tests/
+
+  unit-test:
+    name: Unit tests (${{ matrix.python }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    container: python:${{ matrix.python }}-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: apk add --no-cache gcc musl-dev g++ libffi-dev openblas-dev
+      - name: Install uv
+        run: pip install uv --quiet
+      - name: Install deps
+        run: uv sync --dev
+      - name: pytest
+        run: uv run pytest
+
+  security-test:
+    name: Security test
+    needs: preflight
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bandit
+        run: pip install bandit --quiet
+      - name: Bandit scan
+        run: bandit -r src/ -ll
+
+  build:
+    name: Build + Trivy
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t museums:ci .
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: museums:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  api-test:
+    name: API tests (Bruno)
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps
+        run: apk add --no-cache nodejs npm gcc musl-dev g++ libffi-dev openblas-dev
+      - name: Install uv
+        run: pip install uv --quiet
+      - name: Install deps
+        run: uv sync --dev
+      - name: Install Bruno CLI
+        run: npm install -g @usebruno/cli
+      - name: Start API
+        run: |
+          uv run uvicorn museums.api:app --host 127.0.0.1 --port 8000 &
+          until wget -q -O - http://127.0.0.1:8000/health; do sleep 1; done
+      - name: Run Bruno tests
+        run: bru run tests/api/ --env Museums
