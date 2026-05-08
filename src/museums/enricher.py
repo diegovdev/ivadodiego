@@ -1,3 +1,5 @@
+"""Enrich city names with country and population via Wikidata SPARQL."""
+
 import logging
 from typing import NotRequired, TypedDict
 
@@ -34,12 +36,22 @@ class _SparqlResponse(TypedDict):
 
 
 class CityRecord(BaseModel):
+    """One enriched city: name, country, and non-negative population."""
+
     name: str
     country: str
     population: int = Field(ge=0)
 
 
 def fetch_city_populations(city_names: list[str]) -> list[CityRecord]:
+    """Look up populations for the given English city names via Wikidata SPARQL.
+
+    Names with no Wikidata match (V20 exact-string limitation) or no English country
+    label (B19) are dropped with a warning. Empty input returns [] without an HTTP call.
+
+    Raises:
+        httpx.HTTPStatusError: if the SPARQL endpoint returns a non-2xx response.
+    """
     if not city_names:
         return []
     response = httpx.get(

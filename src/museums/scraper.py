@@ -1,3 +1,5 @@
+"""Scrape the most-visited-museums table from Wikipedia into typed records."""
+
 import io
 import logging
 import re
@@ -14,6 +16,8 @@ _REQUIRED_COLS = {"Name", "Visitors", "City", "Country"}
 
 
 class MuseumRecord(BaseModel):
+    """One scraped museum: name, city, country, and non-negative annual visitors."""
+
     name: str
     city: str
     country: str
@@ -21,6 +25,12 @@ class MuseumRecord(BaseModel):
 
 
 def fetch_museums() -> list[MuseumRecord]:
+    """Fetch the Wikipedia page over HTTP and return parsed museum records.
+
+    Raises:
+        httpx.HTTPStatusError: if the upstream returns a non-2xx response.
+        ValueError: if the expected table cannot be found in the page.
+    """
     response = httpx.get(_URL, headers=_HEADERS, follow_redirects=True, timeout=10.0)
     response.raise_for_status()
     return _parse(response.text)

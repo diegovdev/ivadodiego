@@ -1,3 +1,5 @@
+"""Linear regression: train on (population → visitors), persist via joblib, predict."""
+
 import logging
 import os
 from pathlib import Path

@@ -103,6 +103,7 @@ def upsert_museum(
 
 
 def upsert_city(session: Session, name: str, country: str, population: int) -> CityRow:
+    """Insert or update a city by natural key (name, country)."""
     row = session.execute(
         select(CityRow).where(CityRow.name == name, CityRow.country == country)
     ).scalar_one_or_none()
@@ -115,18 +116,22 @@ def upsert_city(session: Session, name: str, country: str, population: int) -> C
 
 
 def get_all_museums(session: Session) -> list[MuseumRow]:
+    """Return every museum row, unordered."""
     return session.execute(select(MuseumRow)).scalars().all()
 
 
 def get_museum_by_id(session: Session, museum_id: int) -> MuseumRow | None:
+    """Return the museum with the given primary key, or None if missing."""
     return session.execute(select(MuseumRow).where(MuseumRow.id == museum_id)).scalar_one_or_none()
 
 
 def get_all_cities(session: Session) -> list[CityRow]:
+    """Return every city row, unordered."""
     return session.execute(select(CityRow)).scalars().all()
 
 
 def get_training_rows(session: Session) -> list[Any]:
+    """Return (visitors_annual, population) pairs joined on (city, country) for regression."""
     # Join on city+country composite — city name alone is ambiguous across countries
     return session.execute(
         select(MuseumRow.visitors_annual, CityRow.population).join(

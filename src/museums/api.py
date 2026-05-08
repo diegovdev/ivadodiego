@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 import museums.db as db
 import museums.regression as regression
-from museums.db import SessionDep, init_db
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
-        init_db(database_url)
+        db.init_db(database_url)
     try:
         regression.load_model()
     except Exception as exc:
@@ -72,7 +71,7 @@ def health() -> HealthResponse:
 
 
 @app.get("/museums", response_model=list[Museum])
-def list_museums(session: SessionDep) -> list[Museum]:
+def list_museums(session: db.SessionDep) -> list[Museum]:
     rows = db.get_all_museums(session)
     return [
         Museum(
@@ -87,7 +86,7 @@ def list_museums(session: SessionDep) -> list[Museum]:
 
 
 @app.get("/museums/{museum_id}", response_model=Museum)
-def get_museum(museum_id: int, session: SessionDep) -> Museum:
+def get_museum(museum_id: int, session: db.SessionDep) -> Museum:
     row = db.get_museum_by_id(session, museum_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
@@ -101,7 +100,7 @@ def get_museum(museum_id: int, session: SessionDep) -> Museum:
 
 
 @app.get("/cities", response_model=list[City])
-def list_cities(session: SessionDep) -> list[City]:
+def list_cities(session: db.SessionDep) -> list[City]:
     rows = db.get_all_cities(session)
     return [
         City(id=row.id, name=row.name, country=row.country, population=row.population)
