@@ -113,7 +113,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T16 | x | infra | Stack configs `infra/environments/{preview,staging,prod}.yaml` (use `--config-file` flag) | T15,V30 | - | - |
 | T17 | x | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
 | T18 | x | infra | RDS provisioning per env (SQLite preview / Postgres t3.micro staging / Postgres t3.small multi-AZ prod) | T16 | - | - |
-| T19 | . | infra | RDS Secrets Manager `manage_master_user_password` rotation; injected via ECS `secrets` field | T18,V33 | - | - |
+| T19 | x | infra | RDS Secrets Manager `manage_master_user_password` rotation; injected via ECS `secrets` field | T18,V33 | - | - |
 | T20 | . | infra | RDS staging auto-shutdown via EventBridge + Lambda, 8pm–7am UTC | T18,V32 | - | - |
 | T21 | . | infra | CloudWatch alarms: 5xx rate, p99 latency, ECS under-capacity, RDS CPU | T17,T18 | - | - |
 | T22 | . | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
