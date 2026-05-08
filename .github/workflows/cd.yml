@@ -1,0 +1,112 @@
+name: CD
+
+on:
+  push:
+    branches: [staging, main]
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + pyyaml
+        run: pip install uv pyyaml --quiet
+      - name: Check lockfile
+        run: uv lock --check
+      - name: Validate YAML configs
+        run: |
+          python -c "
+          import yaml, pathlib
+          targets = list(pathlib.Path('.github/workflows').glob('*.yml')) + [pathlib.Path('docker-compose.yml')]
+          for f in targets:
+              yaml.safe_load(f.read_text())
+          print(f'Validated {len(targets)} files')
+          "
+
+  deploy-staging:
+    name: Deploy staging
+    if: github.ref == 'refs/heads/staging'
+    needs: [validate]
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build
+        run: |
+          IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/museums:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Install Pulumi
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: museums/staging
+          work-dir: infra
+          config-file: infra/environments/staging.yaml
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          MUSEUMS_IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+
+  deploy-prod:
+    name: Deploy prod
+    if: github.ref == 'refs/heads/main'
+    needs: [deploy-staging]
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build
+        run: |
+          IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/museums:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to prod
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: museums/prod
+          work-dir: infra
+          config-file: infra/environments/prod.yaml
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          MUSEUMS_IMAGE_URI: ${{ steps.build.outputs.image_uri }}

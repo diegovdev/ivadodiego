@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Semantic release
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install build deps
+        run: apk add --no-cache git gcc musl-dev g++ libffi-dev
+
+      - name: Install uv
+        run: pip install uv --quiet
+
+      - name: Install dev deps
+        run: uv sync --dev
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: semantic-release version
+        run: uv run semantic-release version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: semantic-release publish
+        run: uv run semantic-release publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,7 @@
+name: museums
+runtime: python
+description: Museums API infrastructure — ECS Fargate + RDS + CloudWatch
+config:
+  pulumi:tags:
+    value:
+      cost-centre: museums

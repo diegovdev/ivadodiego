@@ -1,0 +1,12 @@
+config:
+  aws:region: us-east-1
+  museums:env: staging
+  museums:image_uri: "REPLACE_WITH_ECR_URI"
+  museums:task_cpu: "512"
+  museums:task_memory: "1024"
+  museums:desired_count: "1"
+  museums:db_engine: postgres
+  museums:db_instance_class: db.t3.micro
+  museums:db_multi_az: "false"
+  museums:enable_alb: "true"
+  # museums:alerts_sns_arn: ""  # set to a real SNS topic ARN to enable alarm notifications
