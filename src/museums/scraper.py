@@ -65,8 +65,13 @@ def _clean(value: str) -> str:
 
 
 def _parse_int(value: str) -> int | None:
-    # format: "9,000,000 (2025) [1]" — take leading number only
-    m = re.match(r"^[\d,]+", value.strip())
+    s = value.strip()
+    # "2.61 million (2024)[31]" or "5.7 million (FY 2024-25)[9]"
+    m = re.match(r"^([\d.]+)\s+million", s, re.IGNORECASE)
+    if m:
+        return int(float(m.group(1)) * 1_000_000)
+    # "9,000,000 (2025) [1]" — take leading comma-separated integer
+    m = re.match(r"^[\d,]+", s)
     if not m:
         return None
     return int(m.group().replace(",", ""))

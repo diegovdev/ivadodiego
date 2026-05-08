@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pytest_httpx import HTTPXMock
 
-from museums.scraper import MuseumRecord, _parse, fetch_museums
+from museums.scraper import MuseumRecord, _parse, _parse_int, fetch_museums
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "wikipedia_museums.html"
 
@@ -33,6 +33,14 @@ def test_all_records_valid(fixture_html: str) -> None:
         assert r.city
         assert r.country
         assert r.visitors_annual >= 0
+
+
+# B42: "X.Y million" format must expand to full integer, not truncate to X
+def test_parse_int_million_format() -> None:
+    assert _parse_int("2.61 million (2024)[31]") == 2_610_000
+    assert _parse_int("5.7 million (FY 2024-25)[9]") == 5_700_000
+    assert _parse_int("3.0 million (2024)[25]") == 3_000_000
+    assert _parse_int("9,000,000 (2025) [1]") == 9_000_000
 
 
 # V5, V6: fetch_museums uses httpx; HTTP call is mocked
