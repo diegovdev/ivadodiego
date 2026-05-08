@@ -1,8 +1,11 @@
 """Unit tests for pipeline — V6, V16, V17."""
 
+import re
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
+from pytest_httpx import HTTPXMock
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -29,6 +32,7 @@ _CITIES = [
 
 @pytest.fixture(autouse=True)
 def reset_pipeline_state() -> Generator[None, None, None]:
+    assert hasattr(pipeline, "_ingest_result") and hasattr(pipeline, "_train_result")
     pipeline._ingest_result = pipeline._RunResult()
     pipeline._train_result = pipeline._RunResult()
     yield
@@ -45,6 +49,7 @@ def patched_db(monkeypatch: pytest.MonkeyPatch) -> Generator[sessionmaker, None,
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(db, "_session_factory", factory)
     yield factory
+    engine.dispose()
 
 
 @pytest.fixture()
@@ -59,7 +64,7 @@ def populated_db(
 
 # V16: ingest writes museums and cities to DB
 def test_run_ingest_populates_db(
-    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker
+    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker, httpx_mock: HTTPXMock
 ) -> None:
     monkeypatch.setattr(scraper_mod, "fetch_museums", lambda: _MUSEUMS)
     monkeypatch.setattr(enricher_mod, "fetch_city_populations", lambda names: _CITIES)
@@ -76,7 +81,7 @@ def test_run_ingest_populates_db(
 
 # V16: calling ingest twice produces no duplicate rows
 def test_run_ingest_idempotent(
-    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker
+    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker, httpx_mock: HTTPXMock
 ) -> None:
     monkeypatch.setattr(scraper_mod, "fetch_museums", lambda: _MUSEUMS)
     monkeypatch.setattr(enricher_mod, "fetch_city_populations", lambda names: _CITIES)
@@ -128,7 +133,7 @@ def test_run_train_insufficient_data(patched_db: sessionmaker) -> None:
 
 # V18: populated DB → train succeeds → status "ok", R² in detail
 def test_run_train_ok(
-    tmp_path: pytest.TempPathFactory,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     populated_db: sessionmaker,
 ) -> None:
@@ -136,4 +141,4 @@ def test_run_train_ok(
     pipeline.run_train()
     status = pipeline.last_train_status()
     assert status["status"] == "ok"
-    assert "R²" in str(status["detail"])
+    assert re.match(r"R²=\d+\.\d{4}", str(status["detail"]))
