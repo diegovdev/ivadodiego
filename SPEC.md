@@ -105,7 +105,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T9 | x | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | [#10](https://github.com/diegovdev/ivadodiego/issues/10) | feature/enricher-9 |
 | T10 | x | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | [#11](https://github.com/diegovdev/ivadodiego/issues/11) | feature/regression-10 |
 | T11 | x | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | [#12](https://github.com/diegovdev/ivadodiego/issues/12) | feature/api-impl-12 |
-| T12 | . | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | - | - |
+| T12 | x | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | [#14](https://github.com/diegovdev/ivadodiego/issues/14) | feature/ingest-12 |
 | T13 | . | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | - | - |
 | T14 | . | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
 | T15 | . | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |

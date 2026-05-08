@@ -80,6 +80,13 @@ def get_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def new_session() -> Session:
+    """Return a bare Session for use outside the FastAPI request lifecycle."""
+    if _session_factory is None:
+        raise RuntimeError("DB not initialised — call init_db() first")
+    return _session_factory()
+
+
 SessionDep = Annotated[Session, Depends(get_session)]
 
 

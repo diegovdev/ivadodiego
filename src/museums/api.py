@@ -1,16 +1,18 @@
-"""FastAPI HTTP surface: health, museums/cities reads, predict, and ingest/train stubs."""
+"""FastAPI HTTP surface: health, museums/cities reads, predict, ingest, train, and status."""
 
 import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from http import HTTPStatus
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 import museums.db as db
+import museums.pipeline as pipeline
 import museums.regression as regression
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,21 @@ class StatusResponse(BaseModel):
     """Generic status payload for fire-and-forget endpoints."""
 
     status: str
+
+
+class PipelineStatus(BaseModel):
+    """Status of a single pipeline run (ingest or train)."""
+
+    last_run: datetime | None
+    status: str
+    detail: str
+
+
+class StatusReport(BaseModel):
+    """GET /status payload: last result for each pipeline."""
+
+    ingest: PipelineStatus
+    train: PipelineStatus
 
 
 @app.get("/", include_in_schema=False)
@@ -138,13 +155,24 @@ def predict(body: PredictRequest) -> PredictResponse:
     return PredictResponse(predicted_visitors=result)
 
 
+@app.get("/status", response_model=StatusReport)
+def pipeline_status() -> StatusReport:
+    """Return the last result of each pipeline run (ingest and train)."""
+    return StatusReport(
+        ingest=PipelineStatus(**pipeline.last_ingest_status()),
+        train=PipelineStatus(**pipeline.last_train_status()),
+    )
+
+
 @app.post("/ingest", response_model=StatusResponse, status_code=HTTPStatus.ACCEPTED)
-def ingest() -> StatusResponse:
-    """Trigger a scrape + enrich + DB upsert run. Stub — wiring lands in T12."""
+def ingest(background_tasks: BackgroundTasks) -> StatusResponse:
+    """Enqueue a scrape + enrich + DB upsert run; returns 202 immediately."""
+    background_tasks.add_task(pipeline.run_ingest)
     return StatusResponse(status="accepted")
 
 
 @app.post("/train", response_model=StatusResponse, status_code=HTTPStatus.ACCEPTED)
-def train() -> StatusResponse:
-    """Trigger a regression retrain against the current DB. Stub — wiring lands in T12."""
+def train(background_tasks: BackgroundTasks) -> StatusResponse:
+    """Enqueue a regression retrain against the current DB; returns 202 immediately."""
+    background_tasks.add_task(pipeline.run_train)
     return StatusResponse(status="accepted")
