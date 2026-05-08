@@ -9,9 +9,8 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 import museums.db as db
+import museums.regression as regression
 from museums.db import SessionDep, init_db
-from museums.regression import ModelNotLoadedError, load_model
-from museums.regression import predict as regression_predict
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if database_url:
         init_db(database_url)
     try:
-        load_model()
+        regression.load_model()
     except Exception as exc:
         logger.warning("model not loaded at startup: %s", exc)
     yield
@@ -113,8 +112,8 @@ def list_cities(session: SessionDep) -> list[City]:
 @app.post("/predict", response_model=PredictResponse)
 def predict(body: PredictRequest) -> PredictResponse:
     try:
-        result = regression_predict(body.population)
-    except ModelNotLoadedError:
+        result = regression.predict(body.population)
+    except regression.ModelNotLoadedError:
         raise HTTPException(status_code=400, detail="model not available")
     return PredictResponse(predicted_visitors=result)
 

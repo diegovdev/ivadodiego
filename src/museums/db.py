@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM models, engine/session lifecycle, and CRUD helpers."""
+
 import logging
 from collections.abc import Generator
 from typing import Annotated, Any
@@ -13,10 +15,12 @@ _session_factory: sessionmaker[Session] | None = None
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for all ORM models in this module."""
 
 
 class MuseumRow(Base):
+    """Museum row keyed by (name, city, country); visitors_annual is non-negative."""
+
     __tablename__ = "museums"
     __table_args__ = (
         UniqueConstraint("name", "city", "country", name="uq_museum_natural_key"),
@@ -31,6 +35,8 @@ class MuseumRow(Base):
 
 
 class CityRow(Base):
+    """City row keyed by (name, country); population is non-negative."""
+
     __tablename__ = "cities"
     __table_args__ = (
         UniqueConstraint("name", "country", name="uq_city_natural_key"),
@@ -44,10 +50,12 @@ class CityRow(Base):
 
 
 def get_engine(database_url: str) -> Engine:
+    """Build a SQLAlchemy Engine for the given URL. No DDL is issued (see B13)."""
     return create_engine(database_url)
 
 
 def init_db(database_url: str) -> None:
+    """Create tables and the module-level session factory. Call once at app startup."""
     global _session_factory
     engine = get_engine(database_url)
     Base.metadata.create_all(engine)
@@ -55,6 +63,10 @@ def init_db(database_url: str) -> None:
 
 
 def get_session() -> Generator[Session, None, None]:
+    """Yield a Session that commits on success and rolls back on exception.
+
+    Intended as a FastAPI dependency. Raises RuntimeError if init_db() was not called.
+    """
     if _session_factory is None:
         raise RuntimeError("DB not initialised — call init_db() first")
     session = _session_factory()
@@ -74,6 +86,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def upsert_museum(
     session: Session, name: str, city: str, country: str, visitors_annual: int
 ) -> MuseumRow:
+    """Insert or update a museum by natural key (name, city, country)."""
     row = session.execute(
         select(MuseumRow).where(
             MuseumRow.name == name,
