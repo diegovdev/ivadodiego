@@ -1,13 +1,34 @@
 import logging
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from museums.db import CityRow, MuseumRow, SessionDep, init_db
+from museums.regression import ModelNotLoadedError, load_model
+from museums.regression import predict as regression_predict
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Museums API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        init_db(database_url)
+    try:
+        load_model()
+    except Exception as exc:
+        logger.warning("model not loaded at startup: %s", exc)
+    yield
+
+
+app = FastAPI(title="Museums API", lifespan=lifespan)
 
 
 class HealthResponse(BaseModel):
@@ -52,23 +73,50 @@ def health() -> HealthResponse:
 
 
 @app.get("/museums", response_model=list[Museum])
-def list_museums() -> list[Museum]:
-    return []
+def list_museums(session: SessionDep) -> list[Museum]:
+    rows = session.execute(select(MuseumRow)).scalars().all()
+    return [
+        Museum(
+            id=row.id,
+            name=row.name,
+            city=row.city,
+            country=row.country,
+            visitors_annual=row.visitors_annual,
+        )
+        for row in rows
+    ]
 
 
 @app.get("/museums/{museum_id}", response_model=Museum)
-def get_museum(museum_id: int) -> Museum:
-    raise HTTPException(status_code=404, detail="not found")
+def get_museum(museum_id: int, session: SessionDep) -> Museum:
+    row = session.execute(select(MuseumRow).where(MuseumRow.id == museum_id)).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return Museum(
+        id=row.id,
+        name=row.name,
+        city=row.city,
+        country=row.country,
+        visitors_annual=row.visitors_annual,
+    )
 
 
 @app.get("/cities", response_model=list[City])
-def list_cities() -> list[City]:
-    return []
+def list_cities(session: SessionDep) -> list[City]:
+    rows = session.execute(select(CityRow)).scalars().all()
+    return [
+        City(id=row.id, name=row.name, country=row.country, population=row.population)
+        for row in rows
+    ]
 
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(body: PredictRequest) -> PredictResponse:
-    raise HTTPException(status_code=400, detail="model not available")
+    try:
+        result = regression_predict(body.population)
+    except ModelNotLoadedError:
+        raise HTTPException(status_code=400, detail="model not available")
+    return PredictResponse(predicted_visitors=result)
 
 
 @app.post("/ingest", response_model=StatusResponse, status_code=HTTPStatus.ACCEPTED)
