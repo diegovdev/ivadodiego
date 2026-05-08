@@ -183,9 +183,11 @@ def create(
             )
         ]
         service_url: pulumi.Output[str] = alb.dns_name
+        alb_arn_suffix: pulumi.Output[str] | None = alb.arn_suffix
     else:
         load_balancers = []
         service_url = pulumi.Output.from_input("http://localhost:8000")
+        alb_arn_suffix = None
 
     service = aws.ecs.Service(
         f"{env}-service",
@@ -207,4 +209,5 @@ def create(
         "service_name": service.name,
         "url": service_url,
         "log_group": log_group.name,
+        "alb_arn_suffix": alb_arn_suffix,
     }
