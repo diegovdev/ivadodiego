@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
@@ -50,15 +51,17 @@ GROUP BY ?name ?countryLabel
 """
 
 
-def _parse_results(data: dict[str, object], city_names: list[str]) -> list[CityRecord]:
+def _parse_results(data: dict[str, Any], city_names: list[str]) -> list[CityRecord]:
     found: dict[str, CityRecord] = {}
-    bindings = data.get("results", {}).get("bindings", [])  # type: ignore[union-attr]
+    bindings = data.get("results", {}).get("bindings", [])
     for b in bindings:
         name = b["name"]["value"]
         country = b.get("countryLabel", {}).get("value", "")
+        if not country:
+            logger.warning("skipping %r — missing countryLabel in Wikidata binding", name)
+            continue
         population = int(b["population"]["value"])
-        if name not in found or population > found[name].population:
-            found[name] = CityRecord(name=name, country=country, population=population)
+        found[name] = CityRecord(name=name, country=country, population=population)
     missing = set(city_names) - set(found)
     for m in sorted(missing):
         logger.warning("no Wikidata match for city %r — V20 exact-string limitation", m)

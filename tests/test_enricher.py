@@ -52,3 +52,19 @@ def test_missing_city_logged(httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFix
     with caplog.at_level(logging.WARNING, logger="museums.enricher"):
         fetch_city_populations(["Paris", "UnknownCity"])
     assert any("UnknownCity" in r.message for r in caplog.records)
+
+
+# B19: binding with missing countryLabel is skipped + warned, not stored as empty string
+def test_missing_country_skipped(httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture) -> None:
+    response = {
+        "results": {
+            "bindings": [
+                {"name": {"value": "NoCountryCity"}, "population": {"value": "1000000"}},
+            ]
+        }
+    }
+    httpx_mock.add_response(json=response)
+    with caplog.at_level(logging.WARNING, logger="museums.enricher"):
+        records = fetch_city_populations(["NoCountryCity"])
+    assert records == []
+    assert any("NoCountryCity" in r.message for r in caplog.records)
