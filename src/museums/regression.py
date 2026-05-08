@@ -1,23 +1,60 @@
-from __future__ import annotations
-
 import logging
-from typing import TYPE_CHECKING
+import os
+from pathlib import Path
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+import joblib
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from museums.db import CityRow, MuseumRow
 
 logger = logging.getLogger(__name__)
 
+_model: LinearRegression | None = None
+
 
 class InsufficientDataError(Exception):
-    """Raised when fewer than 2 distinct samples are available for training."""
+    """Raised when fewer than 2 distinct city populations are available."""
+
+
+def _model_path() -> Path:
+    return Path(os.getenv("MODEL_PATH", "models/regression.pkl"))
 
 
 def train(session: Session) -> float:
-    """Fit regression, persist model, return R²."""
-    ...
+    rows = session.execute(
+        select(MuseumRow.visitors_annual, CityRow.population).join(
+            CityRow,
+            (MuseumRow.city == CityRow.name) & (MuseumRow.country == CityRow.country),
+        )
+    ).all()
+    if len({r.population for r in rows}) < 2:
+        raise InsufficientDataError(f"need ≥2 distinct city populations, got {len(rows)} rows")
+    X = np.array([[r.population] for r in rows])
+    y = np.array([r.visitors_annual for r in rows])
+    model = LinearRegression()
+    model.fit(X, y)
+    r2: float = model.score(X, y)
+    path = _model_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, path)
+    global _model
+    _model = model
+    logger.info("trained: R²=%.4f n=%d path=%s", r2, len(rows), path)
+    return r2
+
+
+def load_model() -> None:
+    global _model
+    path = _model_path()
+    _model = joblib.load(path)
+    logger.info("model loaded from %s", path)
 
 
 def predict(population: int) -> int:
-    """Return max(0, int(predicted_visitors))."""
-    ...
+    if _model is None:
+        raise RuntimeError("model not loaded — call load_model() or train() first")
+    pred: float = _model.predict([[population]])[0]
+    return max(0, int(pred))
