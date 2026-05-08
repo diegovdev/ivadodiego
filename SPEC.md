@@ -108,7 +108,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T11 | x | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | [#12](https://github.com/diegovdev/ivadodiego/issues/12) | feature/api-impl-12 |
 | T12 | x | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | [#14](https://github.com/diegovdev/ivadodiego/issues/14) | feature/ingest-12 |
 | T13 | x | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | [#15](https://github.com/diegovdev/ivadodiego/issues/15) | feature/notebook-13 |
-| T14 | . | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
+| T14 | x | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
 | T15 | . | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |
 | T16 | . | infra | Stack configs `infra/environments/{preview,staging,prod}.yaml` (use `--config-file` flag) | T15,V30 | - | - |
 | T17 | . | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
