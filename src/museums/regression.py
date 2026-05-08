@@ -19,6 +19,10 @@ class InsufficientDataError(Exception):
     """Raised when fewer than 2 distinct city populations are available."""
 
 
+class ModelNotLoadedError(RuntimeError):
+    """Raised when predict() is called before the model has been loaded or trained."""
+
+
 def _model_path() -> Path:
     return Path(os.getenv("MODEL_PATH", "models/regression.pkl"))
 
@@ -55,6 +59,6 @@ def load_model() -> None:
 
 def predict(population: int) -> int:
     if _model is None:
-        raise RuntimeError("model not loaded — call load_model() or train() first")
+        raise ModelNotLoadedError("model not loaded — call load_model() or train() first")
     pred: float = _model.predict([[population]])[0]
     return max(0, int(pred))

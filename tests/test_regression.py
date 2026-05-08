@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 import museums.regression as reg_module
 from museums.db import Base, get_engine, upsert_city, upsert_museum
-from museums.regression import InsufficientDataError, predict, train
+from museums.regression import InsufficientDataError, ModelNotLoadedError, predict, train
 
 _URL = "sqlite:///:memory:"
 
@@ -73,6 +73,13 @@ def test_predict_clamps_negative(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_model.predict.return_value = [-100.0]
     monkeypatch.setattr(reg_module, "_model", mock_model)
     assert predict(1_000_000) == 0
+
+
+# B22: predict() raises ModelNotLoadedError when _model is None
+def test_predict_model_not_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(reg_module, "_model", None)
+    with pytest.raises(ModelNotLoadedError):
+        predict(1_000_000)
 
 
 # V9: joblib file persisted at MODEL_PATH after train
