@@ -29,6 +29,11 @@ def _model_path() -> Path:
 
 
 def train(session: Session) -> float:
+    """Fit LinearRegression on joined museum/city rows, persist to MODEL_PATH, return R².
+
+    Raises:
+        InsufficientDataError: if fewer than 2 distinct city populations are present.
+    """
     rows = db.get_training_rows(session)
     if len({r.population for r in rows}) < 2:
         raise InsufficientDataError(f"need ≥2 distinct city populations, got {len(rows)} rows")
@@ -47,6 +52,7 @@ def train(session: Session) -> float:
 
 
 def load_model() -> None:
+    """Load the persisted model from MODEL_PATH into the module-level cache."""
     global _model
     path = _model_path()
     _model = joblib.load(path)
@@ -54,6 +60,11 @@ def load_model() -> None:
 
 
 def predict(population: int) -> int:
+    """Predict annual visitors for the given city population, clamped to >= 0.
+
+    Raises:
+        ModelNotLoadedError: if neither train() nor load_model() has run.
+    """
     if _model is None:
         raise ModelNotLoadedError("model not loaded — call load_model() or train() first")
     pred: float = _model.predict([[population]])[0]
