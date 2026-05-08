@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends
 from sqlalchemy import CheckConstraint, String, UniqueConstraint, create_engine, select
@@ -99,3 +99,25 @@ def upsert_city(session: Session, name: str, country: str, population: int) -> C
     else:
         row.population = population
     return row
+
+
+def get_all_museums(session: Session) -> list[MuseumRow]:
+    return session.execute(select(MuseumRow)).scalars().all()
+
+
+def get_museum_by_id(session: Session, museum_id: int) -> MuseumRow | None:
+    return session.execute(select(MuseumRow).where(MuseumRow.id == museum_id)).scalar_one_or_none()
+
+
+def get_all_cities(session: Session) -> list[CityRow]:
+    return session.execute(select(CityRow)).scalars().all()
+
+
+def get_training_rows(session: Session) -> list[Any]:
+    # Join on city+country composite — city name alone is ambiguous across countries
+    return session.execute(
+        select(MuseumRow.visitors_annual, CityRow.population).join(
+            CityRow,
+            (MuseumRow.city == CityRow.name) & (MuseumRow.country == CityRow.country),
+        )
+    ).all()

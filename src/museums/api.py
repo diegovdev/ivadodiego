@@ -7,9 +7,9 @@ from http import HTTPStatus
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 
-from museums.db import CityRow, MuseumRow, SessionDep, init_db
+import museums.db as db
+from museums.db import SessionDep, init_db
 from museums.regression import ModelNotLoadedError, load_model
 from museums.regression import predict as regression_predict
 
@@ -74,7 +74,7 @@ def health() -> HealthResponse:
 
 @app.get("/museums", response_model=list[Museum])
 def list_museums(session: SessionDep) -> list[Museum]:
-    rows = session.execute(select(MuseumRow)).scalars().all()
+    rows = db.get_all_museums(session)
     return [
         Museum(
             id=row.id,
@@ -89,7 +89,7 @@ def list_museums(session: SessionDep) -> list[Museum]:
 
 @app.get("/museums/{museum_id}", response_model=Museum)
 def get_museum(museum_id: int, session: SessionDep) -> Museum:
-    row = session.execute(select(MuseumRow).where(MuseumRow.id == museum_id)).scalar_one_or_none()
+    row = db.get_museum_by_id(session, museum_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
     return Museum(
@@ -103,7 +103,7 @@ def get_museum(museum_id: int, session: SessionDep) -> Museum:
 
 @app.get("/cities", response_model=list[City])
 def list_cities(session: SessionDep) -> list[City]:
-    rows = session.execute(select(CityRow)).scalars().all()
+    rows = db.get_all_cities(session)
     return [
         City(id=row.id, name=row.name, country=row.country, population=row.population)
         for row in rows

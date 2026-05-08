@@ -5,10 +5,9 @@ from pathlib import Path
 import joblib
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from museums.db import CityRow, MuseumRow
+import museums.db as db
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +27,7 @@ def _model_path() -> Path:
 
 
 def train(session: Session) -> float:
-    rows = session.execute(
-        select(MuseumRow.visitors_annual, CityRow.population).join(
-            CityRow,
-            (MuseumRow.city == CityRow.name) & (MuseumRow.country == CityRow.country),
-        )
-    ).all()
+    rows = db.get_training_rows(session)
     if len({r.population for r in rows}) < 2:
         raise InsufficientDataError(f"need ≥2 distinct city populations, got {len(rows)} rows")
     X = np.array([[r.population] for r in rows])
