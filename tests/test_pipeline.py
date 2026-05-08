@@ -20,9 +20,7 @@ from museums.scraper import MuseumRecord
 
 _MUSEUMS = [
     MuseumRecord(name="Louvre", city="Paris", country="France", visitors_annual=9_000_000),
-    MuseumRecord(
-        name="British Museum", city="London", country="UK", visitors_annual=6_000_000
-    ),
+    MuseumRecord(name="British Museum", city="London", country="UK", visitors_annual=6_000_000),
 ]
 _CITIES = [
     CityRecord(name="Paris", country="France", population=2_161_000),
@@ -53,9 +51,7 @@ def patched_db(monkeypatch: pytest.MonkeyPatch) -> Generator[sessionmaker, None,
 
 
 @pytest.fixture()
-def populated_db(
-    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker
-) -> sessionmaker:
+def populated_db(monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker) -> sessionmaker:
     monkeypatch.setattr(scraper_mod, "fetch_museums", lambda: _MUSEUMS)
     monkeypatch.setattr(enricher_mod, "fetch_city_populations", lambda names: _CITIES)
     pipeline.run_ingest()
@@ -98,9 +94,7 @@ def test_run_ingest_idempotent(
 
 
 # V6: ingest success sets status "ok"
-def test_run_ingest_status_ok(
-    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker
-) -> None:
+def test_run_ingest_status_ok(monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker) -> None:
     monkeypatch.setattr(scraper_mod, "fetch_museums", lambda: _MUSEUMS)
     monkeypatch.setattr(enricher_mod, "fetch_city_populations", lambda names: _CITIES)
     pipeline.run_ingest()
@@ -110,9 +104,7 @@ def test_run_ingest_status_ok(
 
 
 # error path sets status "error" without raising
-def test_run_ingest_status_error(
-    monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker
-) -> None:
+def test_run_ingest_status_error(monkeypatch: pytest.MonkeyPatch, patched_db: sessionmaker) -> None:
     def _fail() -> list:
         raise RuntimeError("scraper down")
 
