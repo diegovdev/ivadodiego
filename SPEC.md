@@ -119,7 +119,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T22 | x | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
 | T23 | x | delivery | CD workflow: `staging` auto-deploys staging; `main` merge requires GitHub Environment manual approval | T17,V34 | - | - |
 | T26 | . | delivery | `.github/workflows/release.yml` — triggers on push to `main`; Alpine container; full history checkout; `semantic-release version` (bumps pyproject.toml + tag) + `semantic-release publish` (GitHub Release + CHANGELOG); uses `GITHUB_TOKEN` | V25,V37,V38,T6 | - | - |
-| T24 | . | quality | Nightly CI: live Wikipedia ingest + pip-audit + Trivy fresh-image scan | T6 | - | - |
+| T24 | x | quality | Nightly CI: live Wikipedia ingest + pip-audit + Trivy fresh-image scan | T6 | - | - |
 | T25 | . | quality | Locust stress thresholds enforced nightly: p95 + p99 + error rate | T24,V35 | - | - |
 
 ## §B BUGS
