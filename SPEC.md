@@ -111,7 +111,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T14 | x | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
 | T15 | x | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |
 | T16 | x | infra | Stack configs `infra/environments/{preview,staging,prod}.yaml` (use `--config-file` flag) | T15,V30 | - | - |
-| T17 | . | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
+| T17 | x | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
 | T18 | . | infra | RDS provisioning per env (SQLite preview / Postgres t3.micro staging / Postgres t3.small multi-AZ prod) | T16 | - | - |
 | T19 | . | infra | RDS Secrets Manager `manage_master_user_password` rotation; injected via ECS `secrets` field | T18,V33 | - | - |
 | T20 | . | infra | RDS staging auto-shutdown via EventBridge + Lambda, 8pm–7am UTC | T18,V32 | - | - |
