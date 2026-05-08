@@ -32,6 +32,7 @@ dev = [
     "poethepoet",
     "pyyaml",
     "bandit",
+    "matplotlib",
 ]
 
 [tool.hatch.build.targets.wheel]
