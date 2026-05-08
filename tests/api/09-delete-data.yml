@@ -1,0 +1,14 @@
+meta:
+  name: 09 DELETE /data
+  type: http
+  seq: 9
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/data"
+  headers:
+    Content-Type: application/json
+
+info:
+  name: 09 DELETE /data
+  seq: 9

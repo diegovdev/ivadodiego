@@ -5,7 +5,7 @@ from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import CheckConstraint, Row, String, UniqueConstraint, create_engine, select
+from sqlalchemy import CheckConstraint, Row, String, UniqueConstraint, create_engine, delete, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -135,6 +135,13 @@ def get_museum_by_id(session: Session, museum_id: int) -> MuseumRow | None:
 def get_all_cities(session: Session) -> list[CityRow]:
     """Return every city row, unordered."""
     return session.execute(select(CityRow)).scalars().all()
+
+
+def clear_all(session: Session) -> dict[str, int]:
+    """Delete all museum and city rows. Returns counts of deleted rows."""
+    museums_deleted = session.execute(delete(MuseumRow)).rowcount
+    cities_deleted = session.execute(delete(CityRow)).rowcount
+    return {"museums": museums_deleted, "cities": cities_deleted}
 
 
 def get_training_rows(session: Session) -> list[Row[tuple[int, int]]]:

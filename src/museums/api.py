@@ -95,6 +95,12 @@ class StatusReport(BaseModel):
     train: PipelineStatus
 
 
+class ClearResponse(BaseModel):
+    """DELETE /data payload: row counts deleted."""
+
+    deleted: dict[str, int]
+
+
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
     """Redirect bare / to the Swagger UI at /docs."""
@@ -179,3 +185,10 @@ def train(background_tasks: BackgroundTasks) -> StatusResponse:
     """Enqueue a regression retrain against the current DB; returns 202 immediately."""
     background_tasks.add_task(pipeline.run_train)
     return StatusResponse(status="accepted")
+
+
+@app.delete("/data", response_model=ClearResponse)
+def clear_data(session: db.SessionDep) -> ClearResponse:
+    """Delete all museum and city rows. Useful for resetting state between test runs."""
+    counts = db.clear_all(session)
+    return ClearResponse(deleted=counts)

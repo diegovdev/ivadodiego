@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import museums.regression as regression_mod
 from museums.api import app
 from museums.db import Base, get_session
 
@@ -40,6 +41,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_session] = override_get_session
     with TestClient(app, raise_server_exceptions=False) as c:
+        regression_mod._model = None  # neutralise any model file present on disk
         yield c
     app.dependency_overrides.clear()
 
@@ -87,6 +89,15 @@ def test_train_accepted(client: TestClient) -> None:
 def test_docs_available(client: TestClient) -> None:
     r = client.get("/docs")
     assert r.status_code == 200
+
+
+def test_clear_data_returns_counts(client: TestClient) -> None:
+    r = client.delete("/data")
+    assert r.status_code == 200
+    body = r.json()
+    assert "deleted" in body
+    assert "museums" in body["deleted"]
+    assert "cities" in body["deleted"]
 
 
 def test_museums_empty_without_database_url() -> None:
