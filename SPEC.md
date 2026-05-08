@@ -28,6 +28,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - api: `POST /predict` body `{population:int≥0}` → 200 `{predicted_visitors:int≥0}` | 400 if model absent
 - api: `POST /ingest` → 202 `{status:"accepted"}`, triggers museum+city fetch+persist
 - api: `POST /train` → 202 `{status:"accepted"}`, triggers regression fit+persist
+- api: `GET /status` → 200 `{ingest:{last_run,status,detail}, train:{last_run,status,detail}}`
 - api: `GET /docs` → OpenAPI UI (FastAPI default)
 - file: `models/regression.pkl` — joblib-serialized fitted `LinearRegression`
 - file: SQLite DB on named vol `museums-data` (path = `${DATABASE_URL}`)
@@ -150,3 +151,6 @@ Status: `.` open, `~` wip, `x` fixed.
 | B22 | x | 2026-05-07 | T10 | medium | `predict()` raises bare `RuntimeError` when model absent — §I says `POST /predict` → 400 if model absent; API layer must catch specific exception | generic `RuntimeError` is fragile boundary; any other RuntimeError also triggers 400 | add `ModelNotLoadedError(RuntimeError)` alongside `InsufficientDataError`; T11 API layer catches by type |
 | B23 | x | 2026-05-08 | T11 | low | `PredictResponse.predicted_visitors` lacks `Field(ge=0)` — §I says `predicted_visitors:int≥0` but OpenAPI schema shows bare `int` | Pydantic model omits constraint that §I declares | add `predicted_visitors: int = Field(ge=0)` to match §I |
 | B24 | x | 2026-05-08 | T11 | low | `test_api_skeleton.py:31` `override_get_session` yields bare session — no commit/rollback/close lifecycle, bypasses V7 transaction wrapper | test fixture shortcuts V7 pattern | replicate try/commit/except rollback/finally close from `get_session`; will bite when T12/T14 add write-path tests |
+| B25 | x | 2026-05-08 | T12 | medium | `pipeline.py:68-87` `run_train()` has no `session.rollback()` in either except branch — V7 requires rollback on error | `run_ingest` has rollback (line 59) but `run_train` omits it | add `session.rollback()` before status update in both except branches |
+| B26 | x | 2026-05-08 | T12 | medium | `pipeline.py:26,34` `last_ingest_status()`/`last_train_status()` return bare `dict` — V11 bans unspecific return types; `db.py:140` `get_training_rows() -> list[Any]` same class | bare dict/Any returns (same class as B4/B18) | type as `dict[str, datetime \| str \| None]`; `get_training_rows` as `list[Row[tuple[int, int]]]` |
+| B27 | x | 2026-05-08 | T12 | low | `GET /status` + `PipelineStatus` + `StatusReport` not in §I — undocumented EXTRA API surface | T12 added status endpoint without amending §I | amend §I to document `GET /status` route |

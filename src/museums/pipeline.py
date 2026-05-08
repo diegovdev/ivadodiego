@@ -23,7 +23,7 @@ _ingest_result = _RunResult()
 _train_result = _RunResult()
 
 
-def last_ingest_status() -> dict:
+def last_ingest_status() -> dict[str, datetime | str | None]:
     return {
         "last_run": _ingest_result.last_run,
         "status": _ingest_result.status,
@@ -31,7 +31,7 @@ def last_ingest_status() -> dict:
     }
 
 
-def last_train_status() -> dict:
+def last_train_status() -> dict[str, datetime | str | None]:
     return {
         "last_run": _train_result.last_run,
         "status": _train_result.status,
@@ -74,11 +74,13 @@ def run_train() -> None:
         _train_result.detail = f"R²={r2:.4f}"
         logger.info("train complete: R²=%.4f", r2)
     except regression.InsufficientDataError as exc:
+        session.rollback()
         _train_result.last_run = datetime.now()
         _train_result.status = "skipped"
         _train_result.detail = str(exc)
         logger.warning("train skipped: %s", exc)
     except Exception as exc:
+        session.rollback()
         _train_result.last_run = datetime.now()
         _train_result.status = "error"
         _train_result.detail = str(exc)

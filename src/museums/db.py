@@ -2,10 +2,10 @@
 
 import logging
 from collections.abc import Generator
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import CheckConstraint, String, UniqueConstraint, create_engine, select
+from sqlalchemy import CheckConstraint, Row, String, UniqueConstraint, create_engine, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -137,7 +137,7 @@ def get_all_cities(session: Session) -> list[CityRow]:
     return session.execute(select(CityRow)).scalars().all()
 
 
-def get_training_rows(session: Session) -> list[Any]:
+def get_training_rows(session: Session) -> list[Row[tuple[int, int]]]:
     """Return (visitors_annual, population) pairs joined on (city, country) for regression."""
     # Join on city+country composite — city name alone is ambiguous across countries
     return session.execute(
