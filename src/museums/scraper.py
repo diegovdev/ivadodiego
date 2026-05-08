@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 _URL = "https://en.wikipedia.org/api/rest_v1/page/html/List_of_most_visited_museums"
-_HEADERS = {"User-Agent": "museums-api/0.1.0 (https://github.com/diegovdev/ivadodiego)"}
+_HEADERS = {"User-Agent": "museums-api/0.1.0"}
 _REQUIRED_COLS = {"Name", "Visitors", "City", "Country"}
 
 
@@ -21,7 +21,7 @@ class MuseumRecord(BaseModel):
 
 
 def fetch_museums() -> list[MuseumRecord]:
-    response = httpx.get(_URL, headers=_HEADERS, follow_redirects=True)
+    response = httpx.get(_URL, headers=_HEADERS, follow_redirects=True, timeout=10.0)
     response.raise_for_status()
     return _parse(response.text)
 

@@ -88,6 +88,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V42: pre-commit hook tool versions ! match dev-group versions (single source of truth)
 - V43: ∀ HTTP polling/healthcheck inside Alpine container ! use `python -c "urllib.request.urlopen(...)"` (⊥ `wget`, ⊥ `curl` — both implicit base-image deps); applies to Dockerfile, Compose, CI scripts
 - V44: upsert helpers ! use dialect-level `INSERT … ON CONFLICT DO UPDATE` (⊥ SELECT-then-INSERT TOCTOU); applies to all `upsert_*` functions in `db.py`
+- V45: ∀ external HTTP call ! set explicit `timeout=` (⊥ unbounded default); applies to `httpx.get`/`httpx.post` in scraper, enricher, and any future HTTP client code
 
 ## §T TASKS
 | id | status | stage | task | cites | issue | branch |
@@ -99,7 +100,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 | T5 | x | scaffold | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api | [#5](https://github.com/diegovdev/ivadodiego/issues/5) | feature/scaffold |
 | T6 | x | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno); jobs run in `python:3.12-alpine` container | V24,V27,V28,V37 | [#6](https://github.com/diegovdev/ivadodiego/issues/6) | feature/scaffold |
 | T7 | x | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16,V44 | [#8](https://github.com/diegovdev/ivadodiego/issues/8) | feature/db-7 |
-| T8 | x | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.api | [#9](https://github.com/diegovdev/ivadodiego/issues/9) | feature/scraper-8 |
+| T8 | x | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,V45,I.api | [#9](https://github.com/diegovdev/ivadodiego/issues/9) | feature/scraper-8 |
 | T9 | . | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | - | - |
 | T10 | . | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | - | - |
 | T11 | . | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | - | - |
@@ -140,3 +141,4 @@ Status: `.` open, `~` wip, `x` fixed.
 | B14 | x | 2026-05-07 | T7 | — | reviewer claimed `get_session` commits on HTTPException (V7 violation) | FALSE POSITIVE: FastAPI yield-dep injection throws exception into generator; `except Exception` catches HTTPException → rollback fires correctly | no fix needed; recorded for precedent |
 | B15 | . | 2026-05-07 | T7 | low | `upsert_museum`/`upsert_city` use SELECT-then-INSERT — TOCTOU race under concurrent ingest | no dialect-level atomic upsert | defer to PostgreSQL migration: SQLite serialises writes so no real race at MVP; dialect-specific `insert().on_conflict_do_update()` belongs in prod migration, not MVP db.py |
 | B16 | x | 2026-05-07 | T7 | — | reviewer flagged `SessionDep` unused in `api.py` endpoints | NOT A BUG: T4 created stubs; T11 wires SessionDep into routes | no fix needed; T11 scope |
+| B17 | x | 2026-05-07 | T8 | medium | `scraper.py:24` `httpx.get` has no `timeout=` — indefinite hang on slow Wikipedia | unbounded default timeout | add `timeout=10.0` to `httpx.get` call; +V45; also check T9 enricher when implemented |
