@@ -23,10 +23,10 @@ image_uri: str = cfg.require("image_uri")
 aws_provider = aws.Provider("aws", region=region)
 provider_opts = pulumi.ResourceOptions(provider=aws_provider)
 
-net = networking.create(env, provider_opts)
+net = networking.create(env, region, provider_opts)
 db_out = rds.create(env, net, provider_opts)
 secret_arn = sec.create(env, db_out, provider_opts) if db_out else None
-svc = ecs.create(env, net, db_out, secret_arn, image_uri, provider_opts)
+svc = ecs.create(env, region, net, db_out, secret_arn, image_uri, provider_opts)
 monitoring.create(env, net, svc, db_out, provider_opts)
 
 if env == "staging" and db_out:

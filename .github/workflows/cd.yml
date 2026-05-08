@@ -5,9 +5,30 @@ on:
     branches: [staging, main]
 
 jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    container: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + pyyaml
+        run: pip install uv pyyaml --quiet
+      - name: Check lockfile
+        run: uv lock --check
+      - name: Validate YAML configs
+        run: |
+          python -c "
+          import yaml, pathlib
+          targets = list(pathlib.Path('.github/workflows').glob('*.yml')) + [pathlib.Path('docker-compose.yml')]
+          for f in targets:
+              yaml.safe_load(f.read_text())
+          print(f'Validated {len(targets)} files')
+          "
+
   deploy-staging:
     name: Deploy staging
     if: github.ref == 'refs/heads/staging'
+    needs: [validate]
     runs-on: ubuntu-latest
     environment: staging
     permissions:
@@ -21,7 +42,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_STAGING_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Login to Amazon ECR
@@ -50,6 +71,7 @@ jobs:
   deploy-prod:
     name: Deploy prod
     if: github.ref == 'refs/heads/main'
+    needs: [deploy-staging]
     runs-on: ubuntu-latest
     environment: prod
     permissions:
@@ -63,7 +85,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_PROD_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Login to Amazon ECR

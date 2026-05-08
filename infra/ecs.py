@@ -13,6 +13,7 @@ import pulumi_aws as aws
 
 def create(
     env: str,
+    region: str,
     net: dict[str, Any],
     db_out: dict[str, Any] | None,
     secret_arn: pulumi.Output[str] | None,
@@ -130,7 +131,7 @@ def create(
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-group": log_group_name,
-                    "awslogs-region": "us-east-1",
+                    "awslogs-region": region,
                     "awslogs-stream-prefix": "api",
                 },
             },

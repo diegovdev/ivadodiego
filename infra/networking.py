@@ -12,10 +12,10 @@ import pulumi_aws as aws
 _AZS = ["a", "b", "c"]
 
 
-def create(env: str, opts: pulumi.ResourceOptions) -> dict[str, Any]:
+def create(env: str, region: str, opts: pulumi.ResourceOptions) -> dict[str, Any]:
     if env == "preview":
         return _preview_networking(opts)
-    return _dedicated_networking(env, opts)
+    return _dedicated_networking(env, region, opts)
 
 
 def _preview_networking(opts: pulumi.ResourceOptions) -> dict[str, Any]:
@@ -48,7 +48,7 @@ def _preview_networking(opts: pulumi.ResourceOptions) -> dict[str, Any]:
     }
 
 
-def _dedicated_networking(env: str, opts: pulumi.ResourceOptions) -> dict[str, Any]:
+def _dedicated_networking(env: str, region: str, opts: pulumi.ResourceOptions) -> dict[str, Any]:
     vpc = aws.ec2.Vpc(
         f"{env}-vpc",
         cidr_block="10.0.0.0/16",
@@ -74,7 +74,7 @@ def _dedicated_networking(env: str, opts: pulumi.ResourceOptions) -> dict[str, A
             f"{env}-pub-{az}",
             vpc_id=vpc.id,
             cidr_block=f"10.0.{i}.0/24",
-            availability_zone=f"us-east-1{az}",
+            availability_zone=f"{region}{az}",
             map_public_ip_on_launch=True,
             opts=opts,
         )
@@ -87,7 +87,7 @@ def _dedicated_networking(env: str, opts: pulumi.ResourceOptions) -> dict[str, A
             f"{env}-priv-{az}",
             vpc_id=vpc.id,
             cidr_block=f"10.0.{i + 10}.0/24",
-            availability_zone=f"us-east-1{az}",
+            availability_zone=f"{region}{az}",
             opts=opts,
         )
         private_subnets.append(priv)
