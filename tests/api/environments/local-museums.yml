@@ -1,4 +1,4 @@
-name: Museums
+name: local-museums
 variables:
   - name: baseUrl
     value: http://127.0.0.1:8000

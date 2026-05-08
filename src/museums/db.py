@@ -1,8 +1,155 @@
-import logging
+"""SQLAlchemy ORM models, engine/session lifecycle, and CRUD helpers."""
 
-from sqlalchemy import Engine
+import logging
+from collections.abc import Generator
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy import CheckConstraint, Row, String, UniqueConstraint, create_engine, delete, select
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 logger = logging.getLogger(__name__)
 
+_session_factory: sessionmaker[Session] | None = None
 
-def get_engine(database_url: str) -> Engine: ...
+
+class Base(DeclarativeBase):
+    """Declarative base for all ORM models in this module."""
+
+
+class MuseumRow(Base):
+    """Museum row keyed by (name, city, country); visitors_annual is non-negative."""
+
+    __tablename__ = "museums"
+    __table_args__ = (
+        UniqueConstraint("name", "city", "country", name="uq_museum_natural_key"),
+        CheckConstraint("visitors_annual >= 0", name="ck_museum_visitors_nonneg"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    city: Mapped[str] = mapped_column(String, nullable=False)
+    country: Mapped[str] = mapped_column(String, nullable=False)
+    visitors_annual: Mapped[int] = mapped_column(nullable=False)
+
+
+class CityRow(Base):
+    """City row keyed by (name, country); population is non-negative."""
+
+    __tablename__ = "cities"
+    __table_args__ = (
+        UniqueConstraint("name", "country", name="uq_city_natural_key"),
+        CheckConstraint("population >= 0", name="ck_city_population_nonneg"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    country: Mapped[str] = mapped_column(String, nullable=False)
+    population: Mapped[int] = mapped_column(nullable=False)
+
+
+def get_engine(database_url: str) -> Engine:
+    """Build a SQLAlchemy Engine for the given URL. No DDL is issued (see B13)."""
+    return create_engine(database_url)
+
+
+def init_db(database_url: str) -> None:
+    """Create tables and the module-level session factory. Call once at app startup."""
+    global _session_factory
+    engine = get_engine(database_url)
+    Base.metadata.create_all(engine)
+    _session_factory = sessionmaker(engine, expire_on_commit=False)
+
+
+def get_session() -> Generator[Session, None, None]:
+    """Yield a Session that commits on success and rolls back on exception.
+
+    Intended as a FastAPI dependency. Raises RuntimeError if init_db() was not called.
+    """
+    if _session_factory is None:
+        raise RuntimeError("DB not initialised — call init_db() first")
+    session = _session_factory()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def new_session() -> Session:
+    """Return a bare Session for use outside the FastAPI request lifecycle."""
+    if _session_factory is None:
+        raise RuntimeError("DB not initialised — call init_db() first")
+    return _session_factory()
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def upsert_museum(
+    session: Session, name: str, city: str, country: str, visitors_annual: int
+) -> MuseumRow:
+    """Insert or update a museum by natural key (name, city, country)."""
+    row = session.execute(
+        select(MuseumRow).where(
+            MuseumRow.name == name,
+            MuseumRow.city == city,
+            MuseumRow.country == country,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = MuseumRow(name=name, city=city, country=country, visitors_annual=visitors_annual)
+        session.add(row)
+    else:
+        row.visitors_annual = visitors_annual
+    return row
+
+
+def upsert_city(session: Session, name: str, country: str, population: int) -> CityRow:
+    """Insert or update a city by natural key (name, country)."""
+    row = session.execute(
+        select(CityRow).where(CityRow.name == name, CityRow.country == country)
+    ).scalar_one_or_none()
+    if row is None:
+        row = CityRow(name=name, country=country, population=population)
+        session.add(row)
+    else:
+        row.population = population
+    return row
+
+
+def get_all_museums(session: Session) -> list[MuseumRow]:
+    """Return every museum row, unordered."""
+    return session.execute(select(MuseumRow)).scalars().all()
+
+
+def get_museum_by_id(session: Session, museum_id: int) -> MuseumRow | None:
+    """Return the museum with the given primary key, or None if missing."""
+    return session.execute(select(MuseumRow).where(MuseumRow.id == museum_id)).scalar_one_or_none()
+
+
+def get_all_cities(session: Session) -> list[CityRow]:
+    """Return every city row, unordered."""
+    return session.execute(select(CityRow)).scalars().all()
+
+
+def clear_all(session: Session) -> dict[str, int]:
+    """Delete all museum and city rows. Returns counts of deleted rows."""
+    museums_deleted = session.execute(delete(MuseumRow)).rowcount
+    cities_deleted = session.execute(delete(CityRow)).rowcount
+    return {"museums": museums_deleted, "cities": cities_deleted}
+
+
+def get_training_rows(session: Session) -> list[Row[tuple[int, int]]]:
+    """Return (visitors_annual, population) pairs joined on (city, country) for regression."""
+    # Join on city+country composite — city name alone is ambiguous across countries
+    return session.execute(
+        select(MuseumRow.visitors_annual, CityRow.population).join(
+            CityRow,
+            (MuseumRow.city == CityRow.name) & (MuseumRow.country == CityRow.country),
+        )
+    ).all()

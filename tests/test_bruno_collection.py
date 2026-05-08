@@ -24,10 +24,13 @@ def test_opencollection_manifest_exists() -> None:
 
 
 def test_environment_file_exists() -> None:
-    env = yaml.safe_load((API_DIR / "environments" / "Museums.yml").read_text())
-    assert env["name"] == "Museums"
-    names = {v["name"] for v in env["variables"]}
-    assert "baseUrl" in names
+    env_dir = API_DIR / "environments"
+    env_files = list(env_dir.glob("*.yml"))
+    assert len(env_files) >= 1
+    for env_file in env_files:
+        env = yaml.safe_load(env_file.read_text())
+        names = {v["name"] for v in env["variables"]}
+        assert "baseUrl" in names, f"{env_file.name} missing baseUrl variable"
 
 
 def _request_files() -> list[Path]:

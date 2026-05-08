@@ -28,6 +28,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - api: `POST /predict` body `{population:int≥0}` → 200 `{predicted_visitors:int≥0}` | 400 if model absent
 - api: `POST /ingest` → 202 `{status:"accepted"}`, triggers museum+city fetch+persist
 - api: `POST /train` → 202 `{status:"accepted"}`, triggers regression fit+persist
+- api: `GET /status` → 200 `{ingest:{last_run,status,detail}, train:{last_run,status,detail}}`
 - api: `GET /docs` → OpenAPI UI (FastAPI default)
 - file: `models/regression.pkl` — joblib-serialized fitted `LinearRegression`
 - file: SQLite DB on named vol `museums-data` (path = `${DATABASE_URL}`)
@@ -87,8 +88,11 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V41: GitHub issue bodies = human prose; ⊥ § notation (V/T/B refs in body)
 - V42: pre-commit hook tool versions ! match dev-group versions (single source of truth)
 - V43: ∀ HTTP polling/healthcheck inside Alpine container ! use `python -c "urllib.request.urlopen(...)"` (⊥ `wget`, ⊥ `curl` — both implicit base-image deps); applies to Dockerfile, Compose, CI scripts
+- V44: upsert helpers ! use dialect-level `INSERT … ON CONFLICT DO UPDATE` (⊥ SELECT-then-INSERT TOCTOU); applies to all `upsert_*` functions in `db.py`
+- V45: ∀ external HTTP call ! set explicit `timeout=` (⊥ unbounded default); applies to `httpx.get`/`httpx.post` in scraper, enricher, and any future HTTP client code
 
 ## §T TASKS
+Status: `.` open, `~` wip, `x` fixed.
 | id | status | stage | task | cites | issue | branch |
 |---|---|---|---|---|---|---|
 | T1 | x | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | [#1](https://github.com/diegovdev/ivadodiego/issues/1) | feature/scaffold |
@@ -97,14 +101,14 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 | T4 | x | scaffold | API skeleton `src/museums/api.py`: FastAPI app, `GET /health`, `GET /docs`, route stubs returning empty Pydantic payloads — boots in container | V11,V12,I.api | [#4](https://github.com/diegovdev/ivadodiego/issues/4) | feature/scaffold |
 | T5 | x | scaffold | Bruno API collection under `tests/api/` — opencollection YAML covering §I.api routes (hits skeleton, grows as routes flesh out) | V29,I.api | [#5](https://github.com/diegovdev/ivadodiego/issues/5) | feature/scaffold |
 | T6 | x | scaffold | `.github/workflows/pr.yml` — preflight job <30s + matrix CI (ruff + pytest + SAST + Docker build + Trivy + Bruno); jobs run in `python:3.12-alpine` container | V24,V27,V28,V37 | [#6](https://github.com/diegovdev/ivadodiego/issues/6) | feature/scaffold |
-| T7 | . | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16 | - | - |
-| T8 | . | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,I.api | - | - |
-| T9 | . | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | - | - |
-| T10 | . | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | - | - |
-| T11 | . | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | - | - |
-| T12 | . | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | - | - |
-| T13 | . | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | - | - |
-| T14 | . | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
+| T7 | x | feature | Database `src/museums/db.py`: SQLAlchemy 2.0 models (`Museum`, `City`), engine + session factory from `DATABASE_URL`, upsert helpers, FastAPI session dependency | V1,V2,V7,V15,V16,V44 | [#8](https://github.com/diegovdev/ivadodiego/issues/8) | feature/db-7 |
+| T8 | x | feature | Scraper `src/museums/scraper.py`: fetch Wikipedia "List_of_most_visited_museums" via REST API, parse via `pandas.read_html`, return `list[MuseumRecord]` (Pydantic); fixture `tests/fixtures/wikipedia_museums.html` | V1,V3,V5,V6,V19,V45,I.api | [#9](https://github.com/diegovdev/ivadodiego/issues/9) | feature/scraper-8 |
+| T9 | x | feature | Enricher `src/museums/enricher.py`: query Wikidata SPARQL for city populations, return `list[CityRecord]`; exact-string label match | V2,V4,V5,V6,V20 | [#10](https://github.com/diegovdev/ivadodiego/issues/10) | feature/enricher-9 |
+| T10 | x | feature | Regression `src/museums/regression.py`: `train(session)`→fit+persist+log R²; `predict(population:int)→int`; `InsufficientDataError` | V8,V9,V17,V18 | [#11](https://github.com/diegovdev/ivadodiego/issues/11) | feature/regression-10 |
+| T11 | x | feature | API impl: wire all routes (`GET /museums`, `/museums/{id}`, `/cities`, `POST /predict`, `POST /ingest`, `POST /train`) to DB + regression; load model at startup | V8,V11,V12,V15,I.api | [#12](https://github.com/diegovdev/ivadodiego/issues/12) | feature/api-impl-12 |
+| T12 | x | feature | Wire `POST /ingest` → scraper+enricher→db; `POST /train` → regression.train(); background tasks via FastAPI BackgroundTasks | V16,I.api | [#14](https://github.com/diegovdev/ivadodiego/issues/14) | feature/ingest-12 |
+| T13 | x | feature | Notebook `notebooks/analysis.ipynb`: imports `museums`, calls regression, plots scatter + fit line + R² | I.notebook | [#15](https://github.com/diegovdev/ivadodiego/issues/15) | feature/notebook-13 |
+| T14 | x | test | Tests: unit suites per module with `pytest-httpx` + in-memory SQLite; fixture replay for scraper; matrix 3.12/3.13 | V6,V24 | - | - |
 | T15 | . | infra | Pulumi Python project scaffold under `infra/` | V30 | - | - |
 | T16 | . | infra | Stack configs `infra/environments/{preview,staging,prod}.yaml` (use `--config-file` flag) | T15,V30 | - | - |
 | T17 | . | infra | ECS Fargate task definitions per env (preview = public IP no ALB; staging+prod behind ALB) | T15,T16 | - | - |
@@ -135,3 +139,22 @@ Status: `.` open, `~` wip, `x` fixed.
 | B10 | x | 2026-05-06 | T3 | low | `uv sync` may install editable; runtime venv → `/build/src` | no `--no-editable` in builder | added `--no-editable` to Dockerfile `uv sync --no-dev` |
 | B11 | x | 2026-05-06 | T3 | low | healthcheck `wget -qO-` relies on busybox wget in Alpine | implicit base-image dep | switch to `python -c "urllib.request.urlopen(...)"` |
 | B12 | x | 2026-05-06 | T6 | low | `pr.yml:113` api-test step polls `/health` via `wget` in Alpine container — same busybox anti-pattern as B11 | B11 fix scoped to Compose only; CI script missed | replaced with `until python -c "urllib.request.urlopen(...)"` poll; +V43 |
+| B13 | x | 2026-05-07 | T7 | low | `get_engine` calls `Base.metadata.create_all(engine)` — DDL side effect in factory function; not in T7 spec | scope creep: schema creation coupled to engine instantiation | move `create_all` to `init_db`; remove from `get_engine` |
+| B14 | x | 2026-05-07 | T7 | — | reviewer claimed `get_session` commits on HTTPException (V7 violation) | FALSE POSITIVE: FastAPI yield-dep injection throws exception into generator; `except Exception` catches HTTPException → rollback fires correctly | no fix needed; recorded for precedent |
+| B15 | . | 2026-05-07 | T7 | low | `upsert_museum`/`upsert_city` use SELECT-then-INSERT — TOCTOU race under concurrent ingest | no dialect-level atomic upsert | defer to PostgreSQL migration: SQLite serialises writes so no real race at MVP; dialect-specific `insert().on_conflict_do_update()` belongs in prod migration, not MVP db.py |
+| B16 | x | 2026-05-07 | T7 | — | reviewer flagged `SessionDep` unused in `api.py` endpoints | NOT A BUG: T4 created stubs; T11 wires SessionDep into routes | no fix needed; T11 scope |
+| B17 | x | 2026-05-07 | T8 | medium | `scraper.py:24` `httpx.get` has no `timeout=` — indefinite hang on slow Wikipedia | unbounded default timeout | add `timeout=10.0` to `httpx.get` call; +V45; also check T9 enricher when implemented |
+| B18 | x | 2026-05-07 | T9 | medium | `_parse_results` signature `data: dict[str, object]` — V11 bans `object` in hints (same class as B4) | vacuous type on SPARQL response dict | narrow type or use `Any` (private fn, acceptable); cites V11 |
+| B19 | x | 2026-05-07 | T9 | medium | `country` defaults to `""` when `countryLabel` absent — empty string is semantically null | `.get("countryLabel", {}).get("value", "")` fallback bypasses V2 | skip binding + log warning when country empty; add test for missing-country path |
+| B20 | x | 2026-05-07 | T9 | low | Python-side dedup guard `if name not in found or population > found[name].population` is dead code — SPARQL already does `MAX(?pop) GROUP BY` | defensive code for impossible state = scope creep | remove guard; simple assignment sufficient |
+| B21 | x | 2026-05-07 | T10 | low | `load_model()` not in T10 spec (T10 = `train` + `predict` + `InsufficientDataError`) | premature implementation of T11 "load model at startup" | resolved by T11: lifespan calls `load_model()` at startup |
+| B22 | x | 2026-05-07 | T10 | medium | `predict()` raises bare `RuntimeError` when model absent — §I says `POST /predict` → 400 if model absent; API layer must catch specific exception | generic `RuntimeError` is fragile boundary; any other RuntimeError also triggers 400 | add `ModelNotLoadedError(RuntimeError)` alongside `InsufficientDataError`; T11 API layer catches by type |
+| B23 | x | 2026-05-08 | T11 | low | `PredictResponse.predicted_visitors` lacks `Field(ge=0)` — §I says `predicted_visitors:int≥0` but OpenAPI schema shows bare `int` | Pydantic model omits constraint that §I declares | add `predicted_visitors: int = Field(ge=0)` to match §I |
+| B24 | x | 2026-05-08 | T11 | low | `test_api_skeleton.py:31` `override_get_session` yields bare session — no commit/rollback/close lifecycle, bypasses V7 transaction wrapper | test fixture shortcuts V7 pattern | replicate try/commit/except rollback/finally close from `get_session`; will bite when T12/T14 add write-path tests |
+| B25 | x | 2026-05-08 | T12 | medium | `pipeline.py:68-87` `run_train()` has no `session.rollback()` in either except branch — V7 requires rollback on error | `run_ingest` has rollback (line 59) but `run_train` omits it | add `session.rollback()` before status update in both except branches |
+| B26 | x | 2026-05-08 | T12 | medium | `pipeline.py:26,34` `last_ingest_status()`/`last_train_status()` return bare `dict` — V11 bans unspecific return types; `db.py:140` `get_training_rows() -> list[Any]` same class | bare dict/Any returns (same class as B4/B18) | type as `dict[str, datetime \| str \| None]`; `get_training_rows` as `list[Row[tuple[int, int]]]` |
+| B27 | x | 2026-05-08 | T12 | low | `GET /status` + `PipelineStatus` + `StatusReport` not in §I — undocumented EXTRA API surface | T12 added status endpoint without amending §I | amend §I to document `GET /status` route |
+| B28 | x | 2026-05-08 | T13 | — | reviewer flagged `print()` in notebook as V10 violation | FALSE POSITIVE: V10 scoped to `src/museums/`; `print()` in Jupyter notebook is normal interactive output | no fix needed |
+| B29 | x | 2026-05-08 | T13 | medium | `analysis.ipynb` accesses `regression._model.score(X, visitors)` — private attribute of regression module | no public `score()`/`r2()` API in regression.py; notebook couples to internal `_model` | add public helper or compute R² via `sklearn.metrics.r2_score` + `regression.predict` in notebook |
+| B30 | x | 2026-05-08 | T13 | — | reviewer flagged `Path(__file__).parent.parent` in test_notebook.py as V39 violation | FALSE POSITIVE: V39 requires `Path(__file__).parent...` pattern — test uses exactly that (⊥ bare paths) | no fix needed |
+| B31 | . | 2026-05-08 | T14 | low | `test_pipeline.py:131` `tmp_path: pytest.TempPathFactory` — wrong type annotation; `tmp_path` fixture returns `pathlib.Path`, not `TempPathFactory` | copy-paste error; pytest resolves by name so no runtime failure, but hint is misleading | change to `tmp_path: Path` + import `pathlib.Path` |

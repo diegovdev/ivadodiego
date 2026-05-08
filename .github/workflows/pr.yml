@@ -93,7 +93,7 @@ jobs:
           ignore-unfixed: true
 
   api-test:
-    name: API tests (Bruno)
+    name: API tests
     needs: [lint, unit-test]
     runs-on: ubuntu-latest
     container: python:3.12-alpine

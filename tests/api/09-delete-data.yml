@@ -1,0 +1,29 @@
+info:
+  name: delete data
+  type: http
+  seq: 9
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/data"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("deleted key present", function() {
+          expect(res.body.deleted).to.have.property("museums");
+          expect(res.body.deleted).to.have.property("cities");
+        });

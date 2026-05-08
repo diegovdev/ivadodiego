@@ -43,6 +43,7 @@ Updated after every prompt that produces a new decision.
 
 | Decision | Why | Rejected |
 |----------|-----|---------|
+| **Thin API handlers + dedicated module for domain logic** — route handlers only dispatch (call module functions, return Pydantic response). All orchestration, DB queries, and ML logic live in specialized modules (`pipeline`, `db`, `regression`). | Couples API layer to domain when logic is inline; harder to test in isolation without the full HTTP stack. | logic inline in route handlers |
 | FastAPI + Uvicorn | Auto OpenAPI docs at /docs, Pydantic-validated settings; sync endpoints run in threadpool automatically | Flask, Django |
 | SQLAlchemy 2.0 ORM, SQLite (MVP) → PostgreSQL (prod) | SQLite = zero infrastructure for ~30 rows MVP; dialect switch is one-line change to DATABASE_URL | raw SQL, other ORMs |
 | Wikipedia MediaWiki REST API + pandas.read_html() for museum data | Returns rendered HTML; pandas parses without custom HTML wrangling; no API key needed | HTML scraping, third-party wrappers |

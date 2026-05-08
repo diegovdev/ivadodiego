@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "8080:8000"
     environment:
       DATABASE_URL: sqlite:////data/museums.db
       MODEL_PATH: /data/models/regression.pkl
@@ -17,7 +17,7 @@ services:
       start_period: 15s
 
   jupyter:
-    image: quay.io/jupyter/minimal-notebook:python-3.12
+    image: quay.io/jupyter/scipy-notebook:python-3.12
     ports:
       - "8888:8888"
     volumes:

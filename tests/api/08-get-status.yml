@@ -1,0 +1,31 @@
+info:
+  name: get status
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: "{{baseUrl}}/status"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("ingest status field present", function() {
+          expect(res.body.ingest).to.have.property("status");
+        });
+        test("train status field present", function() {
+          expect(res.body.train).to.have.property("status");
+        });
