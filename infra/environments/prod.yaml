@@ -1,0 +1,11 @@
+config:
+  aws:region: us-east-1
+  museums:env: prod
+  museums:image_uri: "REPLACE_WITH_ECR_URI"
+  museums:task_cpu: "1024"
+  museums:task_memory: "2048"
+  museums:desired_count: "2"
+  museums:db_engine: postgres
+  museums:db_instance_class: db.t3.small
+  museums:db_multi_az: "true"
+  museums:enable_alb: "true"

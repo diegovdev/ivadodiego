@@ -1,0 +1,9 @@
+config:
+  aws:region: us-east-1
+  museums:env: preview
+  museums:image_uri: "REPLACE_WITH_ECR_URI"
+  museums:task_cpu: "256"
+  museums:task_memory: "512"
+  museums:desired_count: "1"
+  museums:db_engine: sqlite
+  museums:enable_alb: "false"
