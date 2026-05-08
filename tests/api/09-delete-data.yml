@@ -1,14 +1,29 @@
-meta:
-  name: 09 DELETE /data
+info:
+  name: delete data
   type: http
   seq: 9
 
 http:
   method: DELETE
   url: "{{baseUrl}}/data"
-  headers:
-    Content-Type: application/json
+  auth: inherit
 
-info:
-  name: 09 DELETE /data
-  seq: 9
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("deleted key present", function() {
+          expect(res.body.deleted).to.have.property("museums");
+          expect(res.body.deleted).to.have.property("cities");
+        });

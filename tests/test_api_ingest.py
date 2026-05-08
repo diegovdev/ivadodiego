@@ -18,22 +18,16 @@ _WIKI_HTML = (Path(__file__).parent / "fixtures" / "wikipedia_museums.html").rea
     encoding="utf-8"
 )
 
-_WIKIDATA_RESPONSE = {
+_WIKIDATA_CITY_RESPONSE = {
     "results": {
         "bindings": [
-            {
-                "name": {"value": "Paris"},
-                "countryLabel": {"value": "France"},
-                "population": {"value": "2161000"},
-            },
-            {
-                "name": {"value": "London"},
-                "countryLabel": {"value": "United Kingdom"},
-                "population": {"value": "8982000"},
-            },
+            {"countryLabel": {"value": "TestCountry"}, "population": {"value": "1000000"}}
         ]
     }
 }
+
+# Enricher makes one SPARQL request per unique city in the fixture (38 cities).
+_UNIQUE_CITY_COUNT = 38
 
 
 @pytest.fixture()
@@ -61,13 +55,15 @@ def test_ingest_is_idempotent(
 ) -> None:
     client, session = client_and_session
     httpx_mock.add_response(text=_WIKI_HTML)
-    httpx_mock.add_response(json=_WIKIDATA_RESPONSE)
+    for _ in range(_UNIQUE_CITY_COUNT):
+        httpx_mock.add_response(json=_WIKIDATA_CITY_RESPONSE)
     client.post("/ingest")
     count_museums_1 = len(session.execute(select(MuseumRow)).scalars().all())
     count_cities_1 = len(session.execute(select(CityRow)).scalars().all())
 
     httpx_mock.add_response(text=_WIKI_HTML)
-    httpx_mock.add_response(json=_WIKIDATA_RESPONSE)
+    for _ in range(_UNIQUE_CITY_COUNT):
+        httpx_mock.add_response(json=_WIKIDATA_CITY_RESPONSE)
     client.post("/ingest")
     count_museums_2 = len(session.execute(select(MuseumRow)).scalars().all())
     count_cities_2 = len(session.execute(select(CityRow)).scalars().all())
@@ -83,7 +79,8 @@ def test_ingest_mocks_http(
 ) -> None:
     client, _ = client_and_session
     httpx_mock.add_response(text=_WIKI_HTML)
-    httpx_mock.add_response(json=_WIKIDATA_RESPONSE)
+    for _ in range(_UNIQUE_CITY_COUNT):
+        httpx_mock.add_response(json=_WIKIDATA_CITY_RESPONSE)
     r = client.post("/ingest")
     assert r.status_code == 202
     assert r.json() == {"status": "accepted"}

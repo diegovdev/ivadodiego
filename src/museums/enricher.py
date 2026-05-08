@@ -46,55 +46,65 @@ class CityRecord(BaseModel):
 def fetch_city_populations(city_names: list[str]) -> list[CityRecord]:
     """Look up populations for the given English city names via Wikidata SPARQL.
 
+    Issues one request per city so no single query times out on Wikidata's label index.
     Names with no Wikidata match (V20 exact-string limitation) or no English country
-    label (B19) are dropped with a warning. Empty input returns [] without an HTTP call.
+    label (B19) are dropped with a warning. Empty input returns [] without HTTP calls.
 
     Raises:
         httpx.HTTPStatusError: if the SPARQL endpoint returns a non-2xx response.
     """
     if not city_names:
         return []
-    response = httpx.get(
-        _SPARQL_URL,
-        params={"query": _build_query(city_names)},
-        headers=_HEADERS,
-        timeout=15.0,
-    )
-    response.raise_for_status()
-    return _parse_results(response.json(), city_names)
+    records: list[CityRecord] = []
+    for name in city_names:
+        record = _fetch_one(name)
+        if record is None:
+            logger.warning("no Wikidata match for city %r — V20 exact-string limitation", name)
+        else:
+            records.append(record)
+    logger.info("enriched %d/%d cities", len(records), len(city_names))
+    return records
 
 
 def _sparql_str(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _build_query(city_names: list[str]) -> str:
-    values = " ".join(_sparql_str(n) for n in city_names)
+def _build_query(name: str) -> str:
+    # Scope to human settlements (Q486972) to avoid matching non-city entities
+    # with the same label. Single-city query stays well within Wikidata's 60s timeout.
     return f"""
-SELECT DISTINCT ?name ?countryLabel (MAX(?pop) AS ?population) WHERE {{
-  VALUES ?name {{ {values} }}
-  ?city rdfs:label ?nameLabel .
-  FILTER(LANG(?nameLabel) = "en" && STR(?nameLabel) = ?name)
+SELECT ?countryLabel (MAX(?pop) AS ?population) WHERE {{
+  ?city rdfs:label {_sparql_str(name)}@en .
+  ?city wdt:P31/wdt:P279* wd:Q486972 .
   ?city wdt:P1082 ?pop .
   ?city wdt:P17 ?country .
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" }}
 }}
-GROUP BY ?name ?countryLabel
+GROUP BY ?countryLabel
+LIMIT 1
 """
 
 
-def _parse_results(data: _SparqlResponse, city_names: list[str]) -> list[CityRecord]:
-    found: dict[str, CityRecord] = {}
-    for b in data["results"]["bindings"]:
-        name = b["name"]["value"]
-        country_obj = b.get("countryLabel")
-        if country_obj is None or not country_obj["value"]:
-            logger.warning("skipping %r — missing countryLabel in Wikidata binding", name)
-            continue
-        population = int(b["population"]["value"])
-        found[name] = CityRecord(name=name, country=country_obj["value"], population=population)
-    missing = set(city_names) - set(found)
-    for m in sorted(missing):
-        logger.warning("no Wikidata match for city %r — V20 exact-string limitation", m)
-    logger.info("enriched %d/%d cities", len(found), len(city_names))
-    return list(found.values())
+def _fetch_one(name: str) -> CityRecord | None:
+    response = httpx.get(
+        _SPARQL_URL,
+        params={"query": _build_query(name)},
+        headers=_HEADERS,
+        timeout=15.0,
+    )
+    response.raise_for_status()
+    data: _SparqlResponse = response.json()
+    bindings = data["results"]["bindings"]
+    if not bindings:
+        return None
+    b = bindings[0]
+    country_obj = b.get("countryLabel")
+    if country_obj is None or not country_obj["value"]:
+        logger.warning("skipping %r — missing countryLabel in Wikidata binding", name)
+        return None
+    return CityRecord(
+        name=name,
+        country=country_obj["value"],
+        population=int(b["population"]["value"]),
+    )
