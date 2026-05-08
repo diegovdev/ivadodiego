@@ -5,8 +5,6 @@ from typing import Any
 import pulumi
 import pulumi_aws as aws
 
-_SNS_PLACEHOLDER = "arn:aws:sns:us-east-1:000000000000:museums-alerts"
-
 
 def create(
     env: str,
@@ -15,10 +13,18 @@ def create(
     db_out: dict[str, Any] | None,
     opts: pulumi.ResourceOptions,
 ) -> None:
-    alarm_actions = [_SNS_PLACEHOLDER]
+    cfg = pulumi.Config()
+    sns_arn = cfg.get("alerts_sns_arn")
+    alarm_actions = [sns_arn] if sns_arn else []
 
-    svc["cluster_name"].apply(
-        lambda cluster_name: _ecs_alarms(env, cluster_name, svc, alarm_actions, opts)
+    # Resolve both cluster_name and service_name before building alarms (B35).
+    pulumi.Output.all(
+        cluster_name=svc["cluster_name"],
+        service_name=svc["service_name"],
+    ).apply(
+        lambda args: _ecs_alarms(
+            env, args["cluster_name"], args["service_name"], alarm_actions, opts
+        )
     )
 
     if svc.get("alb_arn_suffix"):
@@ -76,11 +82,11 @@ def _alb_alarms(
 def _ecs_alarms(
     env: str,
     cluster_name: str,
-    svc: dict[str, Any],
+    service_name: str,
     alarm_actions: list[str],
     opts: pulumi.ResourceOptions,
 ) -> None:
-    dimensions = {"ClusterName": cluster_name, "ServiceName": svc["service_name"]}
+    dimensions = {"ClusterName": cluster_name, "ServiceName": service_name}
 
     aws.cloudwatch.MetricAlarm(
         f"{env}-ecs-cpu-high",

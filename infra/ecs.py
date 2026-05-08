@@ -84,52 +84,84 @@ def create(
         {"name": "LOG_LEVEL", "value": "INFO"},
         {"name": "MODEL_PATH", "value": "/data/models/regression.pkl"},
     ]
-    container_secrets: list[dict[str, str]] = []
+
     if secret_arn:
-        container_secrets.append(
-            {"name": "DATABASE_URL", "valueFrom": secret_arn}  # type: ignore[dict-item]
+        # RDS-managed secret value is a JSON blob, not a connection URI.
+        # Inject each field separately using ECS secrets jsonField syntax, then
+        # assemble DATABASE_URL at container startup via a sh one-liner (B33).
+        container_secrets: pulumi.Output[list[dict[str, str]]] = secret_arn.apply(
+            lambda arn: [
+                {"name": "DB_USERNAME", "valueFrom": f"{arn}:username::"},
+                {"name": "DB_PASSWORD", "valueFrom": f"{arn}:password::"},
+                {"name": "DB_HOST", "valueFrom": f"{arn}:host::"},
+                {"name": "DB_PORT", "valueFrom": f"{arn}:port::"},
+                {"name": "DB_NAME", "valueFrom": f"{arn}:dbname::"},
+            ]
         )
+        startup_command: list[str] | None = [
+            "sh",
+            "-c",
+            (
+                'export DATABASE_URL="postgresql://${DB_USERNAME}:${DB_PASSWORD}'
+                '@${DB_HOST}:${DB_PORT}/${DB_NAME}"'
+                " && exec uvicorn museums.api:app --host 0.0.0.0 --port 8000"
+            ),
+        ]
     else:
         env_vars.append(
             {"name": "DATABASE_URL", "value": "sqlite:////data/museums.db"}
         )
+        container_secrets = pulumi.Output.from_input([])
+        startup_command = None
+
+    def _build_container_def(
+        image: str,
+        log_group_name: str,
+        evars: list[dict[str, str]],
+        secrets: list[dict[str, str]],
+    ) -> str:
+        definition: dict = {
+            "name": "api",
+            "image": image,
+            "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+            "environment": evars,
+            "secrets": secrets,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": log_group_name,
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "api",
+                },
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+                ],
+                "interval": 10,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 15,
+            },
+        }
+        if startup_command is not None:
+            definition["command"] = startup_command
+        return json.dumps([definition])
 
     container_def = pulumi.Output.all(
         image_uri=image_uri,
         log_group=log_group.name,
         env_vars=env_vars,
-        secrets=container_secrets if secret_arn else [],
+        secrets=container_secrets,
     ).apply(
-        lambda args: json.dumps(
-            [
-                {
-                    "name": "api",
-                    "image": args["image_uri"],
-                    "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
-                    "environment": args["env_vars"],
-                    "secrets": args["secrets"],
-                    "logConfiguration": {
-                        "logDriver": "awslogs",
-                        "options": {
-                            "awslogs-group": args["log_group"],
-                            "awslogs-region": "us-east-1",
-                            "awslogs-stream-prefix": "api",
-                        },
-                    },
-                    "healthCheck": {
-                        "command": [
-                            "CMD",
-                            "python",
-                            "-c",
-                            "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
-                        ],
-                        "interval": 10,
-                        "timeout": 5,
-                        "retries": 3,
-                        "startPeriod": 15,
-                    },
-                }
-            ]
+        lambda args: _build_container_def(
+            args["image_uri"],
+            args["log_group"],
+            args["env_vars"],
+            args["secrets"],
         )
     )
 

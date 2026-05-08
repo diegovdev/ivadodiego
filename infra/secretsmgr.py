@@ -1,14 +1,15 @@
-"""Secrets Manager: configure 7-day rotation for RDS master password (V33).
+"""Secrets Manager: surface ARN for the RDS-managed master-user secret (V33).
 
-RDS `manage_master_user_password=True` already creates the secret in Secrets Manager.
-This module attaches a rotation schedule to that secret (7-day cadence) and returns
-the secret ARN for injection into the ECS task definition via the `secrets` field.
+RDS `manage_master_user_password=True` owns the secret lifecycle and rotates it
+automatically every 7 days.  Attaching a separate `SecretRotation` resource to a
+secret that is already managed by another service causes AWS to reject the call with
+ResourceNotFoundException / InvalidRequestException — so we intentionally omit it.
+The 7-day default rotation satisfies V33 without an explicit rotation resource.
 """
 
 from typing import Any
 
 import pulumi
-import pulumi_aws as aws
 
 
 def create(
@@ -16,17 +17,5 @@ def create(
     db_out: dict[str, Any],
     opts: pulumi.ResourceOptions,
 ) -> pulumi.Output[str]:
-    secret_arn: pulumi.Output[str] = db_out["master_user_secret_arn"]
-
-    # Attach 7-day automatic rotation — RDS-managed secret uses the
-    # aws-secretsmanager-rotation Lambda for the RDS Postgres single-user strategy.
-    aws.secretsmanager.SecretRotation(
-        f"{env}-rds-rotation",
-        secret_id=secret_arn,
-        rotation_rules=aws.secretsmanager.SecretRotationRotationRulesArgs(
-            automatically_after_days=7,
-        ),
-        opts=opts,
-    )
-
-    return secret_arn
+    # AWS auto-rotates RDS-managed secrets every 7 days by default (V33).
+    return db_out["master_user_secret_arn"]

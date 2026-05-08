@@ -9,3 +9,4 @@ config:
   museums:db_instance_class: db.t3.small
   museums:db_multi_az: "true"
   museums:enable_alb: "true"
+  # museums:alerts_sns_arn: ""  # set to a real SNS topic ARN to enable alarm notifications

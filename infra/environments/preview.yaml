@@ -7,3 +7,4 @@ config:
   museums:desired_count: "1"
   museums:db_engine: sqlite
   museums:enable_alb: "false"
+  # museums:alerts_sns_arn: ""  # set to a real SNS topic ARN to enable alarm notifications
