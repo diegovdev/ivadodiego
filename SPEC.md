@@ -116,7 +116,7 @@ Status: `.` open, `~` wip, `x` fixed.
 | T19 | x | infra | RDS Secrets Manager `manage_master_user_password` rotation; injected via ECS `secrets` field | T18,V33 | - | - |
 | T20 | x | infra | RDS staging auto-shutdown via EventBridge + Lambda, 8pm–7am UTC | T18,V32 | - | - |
 | T21 | x | infra | CloudWatch alarms: 5xx rate, p99 latency, ECS under-capacity, RDS CPU | T17,T18 | - | - |
-| T22 | . | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
+| T22 | x | infra | HA: 3 AZs, ≥2 prod tasks | T17,V31 | - | - |
 | T23 | . | delivery | CD workflow: `staging` auto-deploys staging; `main` merge requires GitHub Environment manual approval | T17,V34 | - | - |
 | T26 | . | delivery | `.github/workflows/release.yml` — triggers on push to `main`; Alpine container; full history checkout; `semantic-release version` (bumps pyproject.toml + tag) + `semantic-release publish` (GitHub Release + CHANGELOG); uses `GITHUB_TOKEN` | V25,V37,V38,T6 | - | - |
 | T24 | . | quality | Nightly CI: live Wikipedia ingest + pip-audit + Trivy fresh-image scan | T6 | - | - |

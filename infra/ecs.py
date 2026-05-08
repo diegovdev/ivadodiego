@@ -25,6 +25,10 @@ def create(
     desired_count = int(cfg.get("desired_count") or "1")
     enable_alb = (cfg.get("enable_alb") or "false").lower() == "true"
 
+    # V31: prod must run ≥2 tasks across ≥3 AZs (networking provides 3-AZ subnets)
+    if env == "prod" and desired_count < 2:
+        raise pulumi.RunError("prod desired_count must be ≥ 2 (V31)")
+
     cluster = aws.ecs.Cluster(f"{env}-cluster", opts=opts)
 
     exec_role = aws.iam.Role(
@@ -189,12 +193,17 @@ def create(
         service_url = pulumi.Output.from_input("http://localhost:8000")
         alb_arn_suffix = None
 
+    # Prod: keep ≥100% healthy during deploys (V31 rolling HA)
+    min_healthy = 100 if env == "prod" else 0
+
     service = aws.ecs.Service(
         f"{env}-service",
         cluster=cluster.arn,
         task_definition=task_def.arn,
         desired_count=desired_count,
         launch_type="FARGATE",
+        deployment_minimum_healthy_percent=min_healthy,
+        deployment_maximum_percent=200,
         network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(
             subnets=net["private_subnet_ids"] if enable_alb else net["public_subnet_ids"],
             security_groups=[net["api_sg_id"]],
