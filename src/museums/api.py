@@ -20,10 +20,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Initialise the DB (if DATABASE_URL is set) and load the model on startup."""
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        db.init_db(database_url)
+    """Initialise the DB and load the model on startup.
+
+    Falls back to a local SQLite file when DATABASE_URL is unset so that
+    GET endpoints return [] instead of 500 in development.
+    """
+    database_url = os.environ.get("DATABASE_URL") or "sqlite:///./museums.db"
+    db.init_db(database_url)
     try:
         regression.load_model()
     except Exception as exc:

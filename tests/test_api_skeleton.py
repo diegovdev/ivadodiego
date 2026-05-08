@@ -87,3 +87,19 @@ def test_train_accepted(client: TestClient) -> None:
 def test_docs_available(client: TestClient) -> None:
     r = client.get("/docs")
     assert r.status_code == 200
+
+
+def test_museums_empty_without_database_url() -> None:
+    """GET /museums must return 200 [] when DATABASE_URL is unset (no 500)."""
+    import os
+
+    env_backup = os.environ.pop("DATABASE_URL", None)
+    try:
+        with TestClient(app, raise_server_exceptions=False) as c:
+            r = c.get("/museums")
+        assert r.status_code == 200
+        assert r.json() == []
+    finally:
+        if env_backup is not None:
+            os.environ["DATABASE_URL"] = env_backup
+        app.dependency_overrides.clear()
