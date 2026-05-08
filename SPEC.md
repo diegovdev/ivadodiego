@@ -91,6 +91,7 @@ ingest top-visited museums + host-city populations → DB → fit linear regress
 - V45: ∀ external HTTP call ! set explicit `timeout=` (⊥ unbounded default); applies to `httpx.get`/`httpx.post` in scraper, enricher, and any future HTTP client code
 
 ## §T TASKS
+Status: `.` open, `~` wip, `x` fixed.
 | id | status | stage | task | cites | issue | branch |
 |---|---|---|---|---|---|---|
 | T1 | x | scaffold | Commit hygiene: `.pre-commit-config.yaml` (commitizen + ruff), `pyproject.toml` `[tool.semantic_release]` config | V25,V26 | [#1](https://github.com/diegovdev/ivadodiego/issues/1) | feature/scaffold |

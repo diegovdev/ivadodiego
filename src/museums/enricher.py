@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import NotRequired, TypedDict
 
 import httpx
 from pydantic import BaseModel, Field
@@ -11,6 +11,26 @@ _HEADERS = {
     "User-Agent": "museums-api/0.1.0 (https://github.com/diegovdev/ivadodiego)",
     "Accept": "application/sparql-results+json",
 }
+
+
+# B18: TypedDict over dict[str, Any] — typo-safe at type-check time, no runtime cost.
+# countryLabel NotRequired: wikibase:label SERVICE omits it when no English label (B19).
+class _SparqlValue(TypedDict):
+    value: str
+
+
+class _Binding(TypedDict):
+    name: _SparqlValue
+    population: _SparqlValue
+    countryLabel: NotRequired[_SparqlValue]
+
+
+class _SparqlResults(TypedDict):
+    bindings: list[_Binding]
+
+
+class _SparqlResponse(TypedDict):
+    results: _SparqlResults
 
 
 class CityRecord(BaseModel):
@@ -51,17 +71,16 @@ GROUP BY ?name ?countryLabel
 """
 
 
-def _parse_results(data: dict[str, Any], city_names: list[str]) -> list[CityRecord]:
+def _parse_results(data: _SparqlResponse, city_names: list[str]) -> list[CityRecord]:
     found: dict[str, CityRecord] = {}
-    bindings = data.get("results", {}).get("bindings", [])
-    for b in bindings:
+    for b in data["results"]["bindings"]:
         name = b["name"]["value"]
-        country = b.get("countryLabel", {}).get("value", "")
-        if not country:
+        country_obj = b.get("countryLabel")
+        if country_obj is None or not country_obj["value"]:
             logger.warning("skipping %r — missing countryLabel in Wikidata binding", name)
             continue
         population = int(b["population"]["value"])
-        found[name] = CityRecord(name=name, country=country, population=population)
+        found[name] = CityRecord(name=name, country=country_obj["value"], population=population)
     missing = set(city_names) - set(found)
     for m in sorted(missing):
         logger.warning("no Wikidata match for city %r — V20 exact-string limitation", m)
